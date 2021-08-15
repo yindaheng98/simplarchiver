@@ -20,7 +20,7 @@ class Controller:
         self.__pair_list = {}
         # feeder-downloader对列表，形如{ 'idxxxxx': { 'feeders': [ feeder1, feeder2, ... ], 'downloaders': [ downloader1, downloader2, ... ] }] }
 
-    def validate(self):
+    def validate(self, pair_id: str):
         if pair_id not in self.__pair_list:
             self.__pair_list[pair_id] = {'feeders': [], 'downloaders': []}
         if 'feeders' not in self.__pair_list[pair_id]:
@@ -40,23 +40,31 @@ class Controller:
         self.__pair_list[pair_id]['timedelta'] = timedelta
 
     def add_feeder(self, pair_id: str, feeder: Feeder):
-        self.validate()
+        self.validate(pair_id)
         self.__add_feeder(pair_id, feeder)
 
     def add_feeders(self, pair_id: str, feeders: List[Feeder]):
-        self.validate()
+        self.validate(pair_id)
         for feeder in feeders:
             self.__add_feeder(pair_id, feeder)
 
     def add_downloader(self, pair_id: str, downloader: Downloader):
-        self.validate()
+        self.validate(pair_id)
         self.__add_downloader(pair_id, feeder)
 
     def add_downloaders(self, pair_id: str, downloaders: List[Downloader]):
+        self.validate(pair_id)
         for downloader in downloaders:
             self.__add_downloader(pair_id, feeder)
 
     # 一次下载全部完成后，经过多长时间开始下一次下载
     def set_timedelta(self, pair_id: str, timedelta: timedelta):
-        self.validate()
+        self.validate(pair_id)
         self.__set_timedelta(pair_id, timedelta)
+
+    def set_pair(self, pair_id: str, pair: dict):
+        self.pair_list[pair_id] = pair_list
+        self.validate(pair_id)
+
+    def get_pair(self, pair_id: str):
+        return self.pair_list[pair_id]
