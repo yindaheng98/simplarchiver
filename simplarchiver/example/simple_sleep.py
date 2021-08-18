@@ -63,4 +63,4 @@ class SleepDownloader(Downloader):
         item = await asyncio.sleep(delay=t, result=item)
         self.log('I have slept %f seconds for the item %s, time to wake up' % (t, item))
         SleepDownloader.running -= 1
-        self.log('I wake up, Now there are %d SleepFeeder awaiting' % SleepDownloader.running)
+        self.log('I wake up, Now there are %d SleepDownloader awaiting' % SleepDownloader.running)

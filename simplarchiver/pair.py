@@ -61,9 +61,6 @@ class FeedController:
                 continue  # None 是退出记号，要从正常的item里面过滤掉
             for dc in download_controllers:  # 每个下载器都要接收到待下载项目
                 await dc.put(item)
-        for dc in download_controllers:  # 等待下载器的所有下载项目完成后才退出
-            await dc.put(None)  # 用None表示feed结束
-            await dc.join()
 
 
 class Pair:
@@ -104,21 +101,27 @@ class Pair:
     def set_downloader_concurrency(self, n: int):
         self.__dc_concurrency = n
 
-    def get_tasks(self):
-        """聚合独立运行的Feed&Download任务"""
+    async def run_once(self):
+        """运行一次Feed&Download任务"""
+
         fc_sem = asyncio.Semaphore(self.__fc_concurrency)
         dc_sem = asyncio.Semaphore(self.__dc_concurrency)
-        tasks = []
-        tasks.extend([fc.get_task(fc_sem, self.__dcs) for fc in self.__fcs])
-        tasks.extend([dc.get_task(dc_sem) for dc in self.__dcs])
         # 运行时生成asyncio.Semaphore
         # asyncio相关数据结构必须在asyncio.run之后生成，否则会出现错误：
         # got Future <Future pending> attached to a different loop
         # 这是由于asyncio.run会生成新的事件循环，不同事件循环中的事件不能互相调用
-        return tasks
 
-    async def run_once(self):
-        await asyncio.gather(*self.get_tasks())
+        # Download任务开始之后是一直在运行的，等到Feed任务给他发停止信息才会停
+        for dc in self.__dcs:
+            asyncio.create_task(dc.get_task(dc_sem))
+
+        # 聚合独立运行的Feed任务
+        await asyncio.gather(*[fc.get_task(fc_sem, self.__dcs) for fc in self.__fcs])
+        # Feed全部结束后向Download任务发送停止信号
+        for dc in self.__dcs:
+            await dc.put(None)  # 用None表示feed结束
+        for dc in self.__dcs:  # 等待下载器的所有下载项目完成后才退出
+            await dc.join()
 
     async def run_forever(self):
         while await asyncio.sleep(self.__timedelta.total_seconds(), result=True):
