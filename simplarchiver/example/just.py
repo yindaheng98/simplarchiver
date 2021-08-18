@@ -23,7 +23,7 @@ class JustDownloader(Downloader):
         self.log('I get an item! %s' % item)
         JustDownloader.running += 1
         self.log('Now there are %d SleepDownloader awaiting including me' % JustDownloader.running)
-        item = await asyncio.sleep(delay=0, result=item)
+        item = await asyncio.sleep(delay=0.1, result=item)
         self.log('For the item %s, time to wake up' % item)
         JustDownloader.running -= 1
         self.log('Now there are %d SleepDownloader awaiting' % JustDownloader.running)

@@ -28,7 +28,7 @@ class RandomFeeder(Feeder):
         for i in range(0, self.n):
             RandomFeeder.running += 1
             self.log('Now there are %d RandomFeeder awaiting including me' % RandomFeeder.running)
-            item = await asyncio.sleep(delay=0, result=random.random() * self.rand_max)
+            item = await asyncio.sleep(delay=0.1, result=random.random() * self.rand_max)
             self.log('Time to wake up and return an item %s' % item)
             RandomFeeder.running -= 1
             self.log('Now there are %d RandomFeeder awaiting' % RandomFeeder.running)
