@@ -7,6 +7,7 @@ import uuid
 
 class SleepFeeder(Feeder):
     """一个只会睡觉的Feeder"""
+    running: int = 0
 
     def __init__(self, i=uuid.uuid4(), n=10, seconds=None, rand_max=5):
         """
@@ -27,14 +28,18 @@ class SleepFeeder(Feeder):
     async def get_feeds(self):
         for i in range(0, self.n):
             t = random.random() % self.rand_max if self.seconds is None else self.seconds
-            self.log('I will sleep %d seconds' % t)
+            SleepFeeder.running += 1
+            self.log('Now there are %d SleepFeeder awaiting, I will sleep %d seconds' % (SleepFeeder.running, t))
             item = await asyncio.sleep(delay=t, result='item(i=%s,t=%s)' % (i, t))
             self.log('I have slept %d seconds, time to wake up and return an item %s' % (t, item))
-            return item
+            SleepFeeder.running -= 1
+            self.log('I wake up, Now there are %d SleepFeeder awaiting' % SleepFeeder.running)
+            yield item
 
 
 class SleepDownloader(Downloader):
     """一个只会睡觉的Downloader"""
+    running: int = 0
 
     def __init__(self, i=uuid.uuid4(), seconds=None, rand_max=5):
         """
@@ -51,7 +56,11 @@ class SleepDownloader(Downloader):
         logging.info('SleepDownloader %s | %s' % (self.id, msg))
 
     async def download(self, item):
+        self.log('I get an item! %d' % item)
         t = random.random() % self.rand_max if self.seconds is None else self.seconds
-        self.log('I get an item! %d, so now I will go to sleep for %d seconds' % (item, t))
+        SleepDownloader.running += 1
+        self.log('Now there are %d SleepDownloader awaiting, I will sleep %d seconds' % (SleepDownloader.running, t))
         item = await asyncio.sleep(delay=t, result=item)
         self.log('I have slept %d seconds for the item %s, time to wake up' % (t, item))
+        SleepDownloader.running -= 1
+        self.log('I wake up, Now there are %d SleepFeeder awaiting' % SleepDownloader.running)
