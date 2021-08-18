@@ -1,1 +1,2 @@
-from .controller import Feeder, Downloader, Controller
+from .abc import Feeder, Downloader
+from .controller import Controller
