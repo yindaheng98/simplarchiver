@@ -1,1 +1,3 @@
-from .simple_sleep import SleepFeeder, SleepDownloader
+from .sleep import SleepFeeder, SleepDownloader
+from .random import RandomFeeder
+from .just import JustDownloader
