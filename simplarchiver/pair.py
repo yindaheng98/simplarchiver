@@ -20,7 +20,7 @@ class DownloadController:
         """等待队列中的所有任务完成"""
         await self.__queue.join()
 
-    async def get_task(self, sem: asyncio.Semaphore):
+    async def coroutine(self, sem: asyncio.Semaphore):
         """独立运行的Download任务"""
         self.__queue: asyncio.Queue = asyncio.Queue(self.__buffer_size)
         # 运行时生成asyncio.Queue
@@ -54,7 +54,7 @@ class FeedController:
         except StopAsyncIteration:
             pass
 
-    async def get_task(self, sem: asyncio.Semaphore, download_controllers: List[DownloadController]):
+    async def coroutine(self, sem: asyncio.Semaphore, download_controllers: List[DownloadController]):
         """独立运行的Feed任务"""
         async for item in self.__get_feeds(sem):  # 以固定并发数获取待下载项目
             if item is None:
@@ -101,7 +101,7 @@ class Pair:
     def set_downloader_concurrency(self, n: int):
         self.__dc_concurrency = n
 
-    async def run_once(self):
+    async def coroutine_once(self):
         """运行一次Feed&Download任务"""
 
         fc_sem = asyncio.Semaphore(self.__fc_concurrency)
@@ -113,16 +113,16 @@ class Pair:
 
         # Download任务开始之后是一直在运行的，等到Feed任务给他发停止信息才会停
         for dc in self.__dcs:
-            asyncio.create_task(dc.get_task(dc_sem))
+            asyncio.create_task(dc.coroutine(dc_sem))
 
         # 聚合独立运行的Feed任务
-        await asyncio.gather(*[fc.get_task(fc_sem, self.__dcs) for fc in self.__fcs])
+        await asyncio.gather(*[fc.coroutine(fc_sem, self.__dcs) for fc in self.__fcs])
         # Feed全部结束后向Download任务发送停止信号
         for dc in self.__dcs:
             await dc.put(None)  # 用None表示feed结束
         for dc in self.__dcs:  # 等待下载器的所有下载项目完成后才退出
             await dc.join()
 
-    async def run_forever(self):
+    async def coroutine_forever(self):
         while await asyncio.sleep(self.__timedelta.total_seconds(), result=True):
-            await self.run_once()
+            await self.coroutine_once()
