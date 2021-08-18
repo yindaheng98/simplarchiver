@@ -23,15 +23,15 @@ class SleepFeeder(Feeder):
         self.log('Initialized: seconds=%s, rand_max=%s, n=%s' % (seconds, rand_max, n))
 
     def log(self, msg):
-        logging.info('SleepFeeder %s | %s' % (self.id, msg))
+        logging.info('SleepFeeder     %s | %s' % (self.id, msg))
 
     async def get_feeds(self):
         for i in range(0, self.n):
-            t = random.random() % self.rand_max if self.seconds is None else self.seconds
+            t = random.random() * self.rand_max if self.seconds is None else self.seconds
             SleepFeeder.running += 1
-            self.log('Now there are %d SleepFeeder awaiting, I will sleep %d seconds' % (SleepFeeder.running, t))
+            self.log('Now there are %d SleepFeeder awaiting, I will sleep %f seconds' % (SleepFeeder.running, t))
             item = await asyncio.sleep(delay=t, result='item(i=%s,t=%s)' % (i, t))
-            self.log('I have slept %d seconds, time to wake up and return an item %s' % (t, item))
+            self.log('I have slept %f seconds, time to wake up and return an item %s' % (t, item))
             SleepFeeder.running -= 1
             self.log('I wake up, Now there are %d SleepFeeder awaiting' % SleepFeeder.running)
             yield item
@@ -50,17 +50,17 @@ class SleepDownloader(Downloader):
         self.seconds = seconds
         self.rand_max = rand_max
         self.id = i
-        self.log('Initialized: seconds=%s, rand_max=%s, n=%s' % (seconds, rand_max, n))
+        self.log('Initialized: seconds=%s, rand_max=%s' % (seconds, rand_max))
 
     def log(self, msg):
         logging.info('SleepDownloader %s | %s' % (self.id, msg))
 
     async def download(self, item):
-        self.log('I get an item! %d' % item)
+        self.log('I get an item! %s' % item)
         t = random.random() % self.rand_max if self.seconds is None else self.seconds
         SleepDownloader.running += 1
-        self.log('Now there are %d SleepDownloader awaiting, I will sleep %d seconds' % (SleepDownloader.running, t))
+        self.log('Now there are %d SleepDownloader awaiting, I will sleep %f seconds' % (SleepDownloader.running, t))
         item = await asyncio.sleep(delay=t, result=item)
-        self.log('I have slept %d seconds for the item %s, time to wake up' % (t, item))
+        self.log('I have slept %f seconds for the item %s, time to wake up' % (t, item))
         SleepDownloader.running -= 1
         self.log('I wake up, Now there are %d SleepFeeder awaiting' % SleepDownloader.running)
