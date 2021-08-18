@@ -29,7 +29,7 @@ class SleepFeeder(Feeder):
         for i in range(0, self.n):
             t = random.random() * self.rand_max if self.seconds is None else self.seconds
             SleepFeeder.running += 1
-            self.log('Now there are %d SleepFeeder awaiting, I will sleep %f seconds' % (SleepFeeder.running, t))
+            self.log('Now there are %d SleepFeeder awaiting including me, I will sleep %f seconds' % (SleepFeeder.running, t))
             item = await asyncio.sleep(delay=t, result='item(i=%s,t=%s)' % (i, t))
             self.log('I have slept %f seconds, time to wake up and return an item %s' % (t, item))
             SleepFeeder.running -= 1
@@ -59,7 +59,7 @@ class SleepDownloader(Downloader):
         self.log('I get an item! %s' % item)
         t = random.random() % self.rand_max if self.seconds is None else self.seconds
         SleepDownloader.running += 1
-        self.log('Now there are %d SleepDownloader awaiting, I will sleep %f seconds' % (SleepDownloader.running, t))
+        self.log('Now there are %d SleepDownloader awaiting including me, I will sleep %f seconds' % (SleepDownloader.running, t))
         item = await asyncio.sleep(delay=t, result=item)
         self.log('I have slept %f seconds for the item %s, time to wake up' % (t, item))
         SleepDownloader.running -= 1

@@ -1,14 +1,13 @@
-from simplarchiver import Pair
-from simplarchiver.example import SleepFeeder, SleepDownloader
-from datetime import timedelta
-import logging
 import asyncio
+import logging
+
+from simplarchiver.example import SleepFeeder, SleepDownloader
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
 
 def log(msg):
-    logging.info('test_Pair | %s' % msg)
+    logging.info('test_Sleep | %s' % msg)
 
 
 sf = SleepFeeder()
