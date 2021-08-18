@@ -12,7 +12,6 @@ def log(msg):
 
 
 sf = SleepFeeder()
-sd = SleepDownloader()
 
 
 async def test_get_feeds():
@@ -21,3 +20,14 @@ async def test_get_feeds():
 
 
 asyncio.run(test_get_feeds())
+
+sd = SleepDownloader()
+
+
+async def test_download():
+    async for item in sf.get_feeds():
+        log('get an item: %s' % item)
+        asyncio.create_task(sd.download(item))
+
+
+asyncio.run(test_download())
