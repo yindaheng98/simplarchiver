@@ -1,13 +1,15 @@
 from .pair import *
+from typing import List
 
 
 class Controller:
-    def __init__(self):
+    def __init__(self, pairs: List[Pair] = []):
         """
         feeder-downloader对列表，键为id值为Pair
         每个Pair都是独立运行的
         """
         self.__pairs = []
+        self.add_pairs(pairs)
 
     def add_pair(self, pair: Pair):
         self.__pairs.append(pair)

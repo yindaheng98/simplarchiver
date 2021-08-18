@@ -13,10 +13,8 @@ def log(msg):
 
 controller = Controller()
 for i in range(1, 4):
-    pair = Pair()
-    pair.add_feeders([RandomFeeder('(%d,%d)' % (i, j)) for j in range(1, 4)])
-    pair.add_downloaders([JustDownloader('(%d,%d)' % (i, j)) for j in range(1, 4)])
-    pair.set_downloader_concurrency(i)
-    pair.set_timedelta(timedelta(seconds=i * 5))
-    controller.add_pair(pair)
+    controller.add_pair(
+        Pair([RandomFeeder('(%d,%d)' % (i, j)) for j in range(1, 4)],
+             [JustDownloader('(%d,%d)' % (i, j)) for j in range(1, 4)],
+             timedelta(seconds=i * 5), i, i))
 asyncio.run(controller.coroutine())

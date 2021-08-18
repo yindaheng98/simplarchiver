@@ -66,16 +66,23 @@ class FeedController:
 class Pair:
     """feeder-downloader对"""
 
-    def __init__(self):
+    def __init__(self,
+                 feeders: List[Feeder] = [],
+                 downloaders: List[Downloader] = [],
+                 time_delta: timedelta = timedelta(minutes=30),
+                 feeder_concurrency: int = 3,
+                 downloader_concurrency: int = 3):
         self.__fcs: List[FeedController] = []
         self.__dcs: List[DownloadController] = []
+        self.add_feeders(feeders)
+        self.add_downloaders(downloaders)
 
         # 一次下载全部完成后，经过多长时间开始下一次下载
-        self.__timedelta: timedelta = timedelta(minutes=30)
+        self.__timedelta: timedelta = time_delta
 
         # Semaphore信号量是asyncio提供的控制协程并发数的方法
-        self.__fc_concurrency: int = 3
-        self.__dc_concurrency: int = 3
+        self.__fc_concurrency: int = feeder_concurrency
+        self.__dc_concurrency: int = downloader_concurrency
 
         # 每个下载器都需要一个队列
         self.__queues: List[asyncio.Queue] = []

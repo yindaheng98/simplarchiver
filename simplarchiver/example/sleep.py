@@ -9,7 +9,7 @@ class SleepFeeder(Feeder):
     """一个只会睡觉的Feeder"""
     running: int = 0
 
-    def __init__(self, i=uuid.uuid4(), n=10, seconds=None, rand_max=5):
+    def __init__(self, i=uuid.uuid4(), n=10, seconds=None, rand_max=1):
         """
         i表示Feeder的编号
         n表示总共要返回多少个item
