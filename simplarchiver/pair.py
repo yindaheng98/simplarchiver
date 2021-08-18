@@ -81,13 +81,13 @@ class Pair:
         self.__fcs.append(FeedController(feeder))
 
     def add_feeders(self, feeders: List[Feeder]):
-        self.__feeders.extend([FeedController(feeder) for feeder in feeders])
+        self.__fcs.extend([FeedController(feeder) for feeder in feeders])
 
     def add_downloader(self, downloader: Downloader):
-        self.__downloaders.append(DownloadController(downloader))
+        self.__dcs.append(DownloadController(downloader))
 
     def add_downloaders(self, downloaders: List[Downloader]):
-        self.__downloaders.extend([DownloadController(downloader) for downloader in downloaders])
+        self.__dcs.extend([DownloadController(downloader) for downloader in downloaders])
 
     def set_timedelta(self, timedelta: timedelta):
         self.__timedelta = timedelta
