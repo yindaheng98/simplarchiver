@@ -17,7 +17,7 @@ class Downloader(metaclass=abc.ABCMeta):
 
 
 class DownloadController:
-    '''下载控制器'''
+    '''Download控制器'''
 
     def __init__(self, downloader: Downloader, buffer_size=100):
         self.__downloader: Downloader = downloader
@@ -32,12 +32,15 @@ class DownloadController:
         await self.__queue.join()
 
     async def download_task(self, sem: asyncio.Semaphore):
-        '''独立运行的下载任务'''
+        '''独立运行的Download任务'''
         while True:
             item = await self.__queue.get()
+            if item is None:
+                self.__queue.task_done()
+                break  # 用None表示feed结束
             with sem:
                 await self.__downloader.download(item)
-                self.__queue.task_done() # task_done配合join可以判断任务是否全部完成
+                self.__queue.task_done()  # task_done配合join可以判断任务是否全部完成
 
 
 class FeedController:
@@ -46,16 +49,26 @@ class FeedController:
     def __init__(self, feeder: Feeder):
         self.__feeder: Feeder = feeder
 
-    def __get_feeds(self, sem: asyncio.Semaphore):
+    async def __get_feeds(self, sem: asyncio.Semaphore):
         '''以固定并发数进行self.__feeder.get_feeds()'''
-        pass # TODO
+        it = self.__feeder.get_feeds()
+        try:
+            while True:
+                async with sem:  # 不用直接async for就是为了这个在next前面调用的信号量
+                    feed = await it.__anext__()
+                    yield feed
+        except StopAsyncIteration:
+            pass
 
     async def feed_task(self, sem: asyncio.Semaphore, download_controllers: List[DownloadController]):
         '''独立运行的Feed任务'''
-        async for item in self.__feeder.get_feeds(sem): # 获取待下载项目
-            for dc in download_controllers: # 每个下载器都要接收到待下载项目
+        async for item in self.__get_feeds(sem):  # 以固定并发数获取待下载项目
+            if item is None:
+                continue  # None 是退出记号，要从正常的item里面过滤掉
+            for dc in download_controllers:  # 每个下载器都要接收到待下载项目
                 await dc.put(item)
-        for dc in download_controllers: # 等待下载器的所有下载项目完成后才退出
+        for dc in download_controllers:  # 等待下载器的所有下载项目完成后才退出
+            await dc.put(None)  # 用None表示feed结束
             await dc.join()
 
 
@@ -83,7 +96,7 @@ class Pair:
         self.__feeders.extend(feeders)
 
     def add_downloader(self, downloader: Downloader):
-        self.__downloaders.append(feeder)
+        self.__downloaders.append(downloader)
 
     def add_downloaders(self, downloaders: List[Downloader]):
         self.__downloaders.extend(downloaders)
@@ -99,7 +112,7 @@ class Pair:
 
     async def get_task():
         '''独立运行的Feed&Download任务'''
-        pass # TODO
+        pass  # TODO
 
 
 class Controller:
@@ -141,4 +154,4 @@ class Controller:
 
     def run(self):
         for pair_id, pair in self.__pairs.items():
-            pass # TODO
+            pass  # TODO
