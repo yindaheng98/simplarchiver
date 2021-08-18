@@ -1,5 +1,5 @@
-# simple-archiver
-一个简单的可扩展聚合下载器框架（Python协程小练习，边学边做）
+# simplarchiver
+一个简单的可扩展聚合异步下载器框架（Python协程小练习）
 
 简单到只有两种自定义的组件：
 * feeder：获取要下载的items
