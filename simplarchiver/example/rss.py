@@ -1,6 +1,8 @@
+import asyncio
 import json
 import logging
 from xml.etree import ElementTree
+from typing import Dict
 
 import httpx
 
@@ -32,14 +34,22 @@ class RSSHubFeeder(Feeder):
 
 
 class TTRSSClient(httpx.AsyncClient):
+    sem_list: Dict[str, asyncio.Semaphore] = {}  # 同一时刻一个链接只能有一个客户端登录，这里用一个信号量列表控制
+
     def __init__(self, url: str, username: str, password: str, **kwargs):
         super().__init__(**kwargs)
         self.__url = url
         self.__username = username
         self.__password = password
         self.__sid = None
+        if self.__url not in TTRSSClient.sem_list:  # 给每个链接一个信号量
+            TTRSSClient.sem_list[self.__url] = None  # 信号量必须在事件循环开始后生成，此处先给个标记
 
     async def __aenter__(self):
+        for url in TTRSSClient.sem_list:  # 信号量必须在事件循环开始后生成
+            if TTRSSClient.sem_list[url] is None:  # 已经生成的信号量不要变
+                TTRSSClient.sem_list[url] = asyncio.Semaphore(1)  # 生成信号量
+        await TTRSSClient.sem_list[self.__url].__aenter__()  # 同一时刻一个链接只能有一个客户端登录
         await super().__aenter__()
         self.__sid = (await super().post(self.__url, content=json.dumps({
             'op': 'login',
@@ -48,12 +58,13 @@ class TTRSSClient(httpx.AsyncClient):
         }))).json()['content']['session_id']
         return self
 
-    async def __aexit__(self, **kwargs):
+    async def __aexit__(self, *args, **kwargs):
         (await super().post(self.__url, content=json.dumps({
             "sid": self.__sid,
             "op": "logout"
         }))).json()
-        await super().__aexit__(**kwargs)
+        await super().__aexit__(*args, **kwargs)
+        await TTRSSClient.sem_list[self.__url].__aexit__(*args, **kwargs)
 
     async def api(self, data: dict):
         data['sid'] = self.__sid
@@ -80,4 +91,4 @@ class TTRSSFeeder(Feeder):
                     "view_mode": "all_articles",
                     "order_by": "feed_dates"
                 })
-                yield {'pubDate': content['link'], 'link': feed['feed_url']}
+                yield {'pubDate': content[0]['link'], 'link': feed['feed_url']}
