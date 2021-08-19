@@ -2,7 +2,7 @@ import asyncio
 import json
 import logging
 from xml.etree import ElementTree
-from typing import Dict
+from typing import Dict, Callable
 
 import httpx
 
@@ -38,6 +38,34 @@ class RSSHubFeeder(Feeder):
                         i['enclosure'] = enclosure
                     self.__logger.info("RSSHubFeeder yield an item: %s" % json.dumps(i))
                     yield i
+
+
+class RSSHubMultiPageFeeder(Feeder):
+    """
+    从多个页面的RSSHub中获取Feed
+    获取到的是RSSHub返回的每个item中的link标签里的内容和pubDate值
+    如果有enclosure还会返回enclosure值
+    """
+
+    def __init__(self, url_gen: Callable[[int], str], max_pages: int = 999,
+                 logger: logging.Logger = logging.getLogger("RSSHubMultiPageFeeder")):
+        """
+        url_gen是输入数字生成url的函数
+        max_pages是最多获取多少页
+        """
+        self.__url_gen = url_gen
+        self.__max_pages = max_pages
+        self.__logger = logger
+
+    async def get_feeds(self):
+        for page in range(0, self.__max_pages):
+            rf = RSSHubFeeder(self.__url_gen(page), self.__logger)
+            rfn = 0  # 计数
+            async for item in rf.get_feeds():
+                rfn += 1
+                yield item
+            if rfn <= 0:
+                return  # 计数，如果一个item都没有返回说明是最后一页，可以退出
 
 
 class TTRSSClient(httpx.AsyncClient):

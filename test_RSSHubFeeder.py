@@ -3,8 +3,8 @@ import logging
 from datetime import timedelta
 
 from simplarchiver import Pair
-from simplarchiver.example import RSSHubFeeder, TTRSSCatFeeder, JustDownloader
-from test_secret import ttrss_data, rsshub_data
+from simplarchiver.example import RSSHubFeeder, RSSHubMultiPageFeeder, TTRSSCatFeeder, JustDownloader
+from test_secret import ttrss_data, rsshub_data, rsshub_multipage_data
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
@@ -24,7 +24,11 @@ rsshub_feeders = [RSSHubFeeder(
     url=rsshub,
     logger=logging.getLogger("test_RSSHubFeeder %s" % rsshub)
 ) for rsshub in rsshub_data]
-pair = Pair(ttrss_feeders + rsshub_feeders,
+rsshub_multipage_feeders = [RSSHubMultiPageFeeder(
+    url_gen=rsshub['url_gen'], max_pages=rsshub['max_pages'],
+    logger=logging.getLogger("test_RSSHubMultiPageFeeder %s" % rsshub)
+) for rsshub in rsshub_multipage_data]
+pair = Pair(ttrss_feeders + rsshub_feeders + rsshub_multipage_feeders,
             [JustDownloader(i) for i in range(1, 4)], timedelta(seconds=5), 4, 4)
 log("pair.coroutine_once()")
 asyncio.run(pair.coroutine_once())
