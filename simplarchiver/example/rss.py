@@ -59,7 +59,9 @@ class RSSHubMultiPageFeeder(Feeder):
 
     async def get_feeds(self):
         for page in range(0, self.__max_pages):
-            rf = RSSHubFeeder(self.__url_gen(page), self.__logger)
+            url = self.__url_gen(page)
+            rf = RSSHubFeeder(url, self.__logger)
+            self.__logger.info("RSSHubMultiPageFeeder downloading page %d: %s" % (page, url))
             rfn = 0  # 计数
             async for item in rf.get_feeds():
                 rfn += 1
