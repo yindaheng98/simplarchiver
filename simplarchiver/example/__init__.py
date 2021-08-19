@@ -1,4 +1,4 @@
 from .sleep import SleepFeeder, SleepDownloader
 from .random import RandomFeeder
 from .just import JustDownloader
-from .rss import RSSHubFeeder, TTRSSFeeder
+from .rss import RSSHubFeeder, TTRSSCatFeeder

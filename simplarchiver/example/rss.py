@@ -10,6 +10,12 @@ from simplarchiver import Feeder
 
 
 class RSSHubFeeder(Feeder):
+    """
+    从RSSHub中获取Feed
+    获取到的是RSSHub返回的每个item中的link标签里的内容和pubDate值
+    如果有enclosure还会返回enclosure值
+    """
+
     def __init__(self, url: str, logger: logging.Logger = logging.getLogger("RSSHubFeeder")):
         self.__url = url
         self.__logger = logger
@@ -35,6 +41,7 @@ class RSSHubFeeder(Feeder):
 
 
 class TTRSSClient(httpx.AsyncClient):
+    """一个简单的异步TTRSS客户端"""
     sem_list: Dict[str, asyncio.Semaphore] = {}  # 同一时刻一个链接只能有一个客户端登录，这里用一个信号量列表控制
 
     def __init__(self, url: str, username: str, password: str,
@@ -81,7 +88,12 @@ class TTRSSClient(httpx.AsyncClient):
         return (await super().post(self.__url, content=json.dumps(data))).json()['content']
 
 
-class TTRSSFeeder(Feeder):
+class TTRSSCatFeeder(Feeder):
+    """
+    从TTRSS的Category中获取Feed
+    返回指定的Category中的所有订阅链接和最新的内容链接
+    """
+
     def __init__(self, cat_id: int, logger: logging.Logger = logging.getLogger("TTRSSFeeder"), **kwargs):
         self.__cat_id = cat_id
         self.__logger = logger
@@ -104,6 +116,6 @@ class TTRSSFeeder(Feeder):
                     "view_mode": "all_articles",
                     "order_by": "feed_dates"
                 })
-                i = {'pubDate': content[0]['link'], 'link': feed['feed_url']}
+                i = {'recent': content[0]['link'], 'link': feed['feed_url']}
                 self.__logger.info("TTRSSFeeder yield an item: %s" % json.dumps(i))
                 yield i

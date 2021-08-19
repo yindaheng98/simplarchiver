@@ -3,7 +3,7 @@ import logging
 from datetime import timedelta
 
 from simplarchiver import Pair
-from simplarchiver.example import RSSHubFeeder, TTRSSFeeder, JustDownloader
+from simplarchiver.example import RSSHubFeeder, TTRSSCatFeeder, JustDownloader
 from test_secret import ttrss_data, rsshub_data
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -13,7 +13,7 @@ def log(msg):
     logging.info('test_Pair | %s' % msg)
 
 
-ttrss_feeders = [TTRSSFeeder(
+ttrss_feeders = [TTRSSCatFeeder(
     cat_id=ttrss['cat_id'],
     logger=logging.getLogger("test_TTRSSFeeder %s %d" % (ttrss['url'], ttrss['cat_id'])),
     url=ttrss['url'],
