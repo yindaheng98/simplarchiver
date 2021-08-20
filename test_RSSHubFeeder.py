@@ -5,6 +5,7 @@ from datetime import timedelta
 from simplarchiver import Pair
 from simplarchiver.example import RSSHubFeeder, RSSHubMultiPageFeeder, TTRSSCatFeeder, TTRSSHubLinkFeeder
 from simplarchiver.example import JustDownloader, SubprocessDownloader, JustLogCallbackDownloader, UpdateDownloader
+from simplarchiver.example import EnclosureOnlyDownloader, EnclosureExceptDownloader
 from test_secret import ttrss_data, rsshub_data, rsshub_multipage_data
 
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -35,6 +36,8 @@ rsshub_multipage_feeders = [RSSHubMultiPageFeeder(
 ) for rsshub in rsshub_multipage_data]
 
 just_downloaders = [JustDownloader(i) for i in range(1, 4)]
+eo_downloaders = [EnclosureOnlyDownloader(base_downloader=JustDownloader(i)) for i in range(4, 7)]
+ee_downloaders = [EnclosureExceptDownloader(base_downloader=JustDownloader(i)) for i in range(7, 10)]
 
 subprocess_downloaders = [
     JustLogCallbackDownloader(
@@ -53,7 +56,7 @@ subprocess_downloaders = [
 ]
 
 pair = Pair(ttrss_feeders + rsshub_feeders + rsshub_multipage_feeders,
-            just_downloaders + subprocess_downloaders,
+            just_downloaders + eo_downloaders + ee_downloaders + subprocess_downloaders,
             timedelta(seconds=5), 4, 4)
 log("pair.coroutine_once()")
 asyncio.run(pair.coroutine_once())

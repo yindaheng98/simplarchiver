@@ -6,7 +6,7 @@ from typing import Dict, Callable
 
 import httpx
 
-from simplarchiver import Feeder, FilterFeeder
+from simplarchiver import Feeder, Downloader, FilterFeeder, FilterDownloader
 
 
 class RSSHubFeeder(Feeder):
@@ -174,3 +174,37 @@ class TTRSSHubLinkFeeder(FilterFeeder):
             return item
         except Exception as e:
             self.__logger.error("Cannot get original link from %s, error is %s" % (rss_link, e))
+
+
+class EnclosureOnlyDownloader(FilterDownloader):
+    """筛掉没有Enclosure的，只要有Enclosure的"""
+
+    def __init__(self, base_downloader: Downloader,
+                 logger: logging.Logger = logging.getLogger("EnclosureOnlyDownloader")):
+        super().__init__(base_downloader)
+        self.__logger = logger
+
+    async def filter(self, item):
+        if 'enclosure' in item:
+            self.__logger.info("This item has an enclosure %s, keep it" % item['enclosure'])
+            return item
+        else:
+            self.__logger.info("This item %s does not have an enclosure, drop it" % item)
+            return None
+
+
+class EnclosureExceptDownloader(FilterDownloader):
+    """筛掉有Enclosure的，只要没有Enclosure的"""
+
+    def __init__(self, base_downloader: Downloader,
+                 logger: logging.Logger = logging.getLogger("EnclosureExceptDownloader")):
+        super().__init__(base_downloader)
+        self.__logger = logger
+
+    async def filter(self, item):
+        if 'enclosure' in item:
+            self.__logger.info("This item has an enclosure %s, drop it" % item['enclosure'])
+            return None
+        else:
+            self.__logger.info("This item %s does not have an enclosure, keep it" % item)
+            return item
