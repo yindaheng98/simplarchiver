@@ -34,8 +34,16 @@ rsshub_multipage_feeders = [RSSHubMultiPageFeeder(
 
 just_downloaders = [JustDownloader(i) for i in range(1, 4)]
 
+
+async def callback(item, cmd, returncode):
+    log('SubprocessDownloader subprocess exit: %s' % {
+        'item': item, 'cmd': cmd, 'returncode': returncode
+    })
+
+
 subprocess_downloaders = [
-    SubprocessDownloader(lambda x: 'ping 127.0.0.1', 'gbk', logger=logging.getLogger("test_SubprocessDownloader"))
+    SubprocessDownloader(lambda x: 'ping 127.0.0.1', callback, 'gbk',
+                         logger=logging.getLogger("test_SubprocessDownloader"))
 ]
 
 pair = Pair(ttrss_feeders + rsshub_feeders + rsshub_multipage_feeders,
