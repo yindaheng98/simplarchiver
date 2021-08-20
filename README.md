@@ -19,3 +19,5 @@
 5. downloader运行完所有的下载任务后收到最后的停止信号就退出
 6. feeder等待所有downloader退出
 7. sleep指定的时间，回到步骤1
+
+一些例程可以参见`example`和`test_*.py`。
