@@ -8,7 +8,7 @@ with open("README.md", "r", encoding='utf8') as fh:
 
 setup(
     name='simplarchiver',
-    version='1.0.0',
+    version='1.0.1',
     author='yindaheng98',
     author_email='yindaheng98@163.com',
     url='https://github.com/yindaheng98/simplarchiver',
