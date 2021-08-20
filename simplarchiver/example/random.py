@@ -3,7 +3,7 @@ import logging
 import random
 import uuid
 
-from simplarchiver import Feeder
+from simplarchiver import Feeder, Downloader, FilterFeeder, FilterDownloader
 
 
 class RandomFeeder(Feeder):
@@ -33,3 +33,36 @@ class RandomFeeder(Feeder):
             RandomFeeder.running -= 1
             self.log('Now there are %d RandomFeeder awaiting' % RandomFeeder.running)
             yield item
+
+
+class RandomFilterFeeder(FilterFeeder):
+    """一个随机过滤item的Feeder"""
+
+    def __init__(self, base_feeder: Feeder,
+                 logger: logging.Logger = logging.getLogger("RandomFilterFeeder")):
+        super().__init__(base_feeder)
+        self.__logger = logger
+
+    async def filter(self, item):
+        r = random.random()
+        self.__logger.info(
+            "RandomFilterFeeder rand  a number %f and item %s, " % (r, item) + (
+                "keep the item" if r > 0.5 else "drop the item"))
+        return item if r > 0.5 else None
+
+
+class RandomFilterDownloader(FilterDownloader):
+    """一个随机过滤item的Downloader"""
+    """一个随机过滤item的Feeder"""
+
+    def __init__(self, base_downloader: Downloader,
+                 logger: logging.Logger = logging.getLogger("RandomFilterDownloader")):
+        super().__init__(base_downloader)
+        self.__logger = logger
+
+    async def filter(self, item):
+        r = random.random()
+        self.__logger.info(
+            "RandomFilterDownloader rand a number %f and item %s, " % (r, item) + (
+                "keep the item" if r > 0.5 else "drop the item"))
+        return item if r > 0.5 else None

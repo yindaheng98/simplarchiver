@@ -38,7 +38,7 @@ class FilterFeeder(Feeder):
     async def get_feeds(self):
         """带过滤的Feeder的Feed过程"""
         async for item in self.__base_feeder.get_feeds():
-            item = self.filter(item)
+            item = await self.filter(item)
             if item is not None:  # 如果过滤器返回了None，则会被过滤掉，不会被yield
                 yield item
 
