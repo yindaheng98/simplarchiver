@@ -6,7 +6,14 @@ from typing import Dict, Callable
 
 import httpx
 
-from simplarchiver import Feeder, Downloader, FilterFeeder, FilterDownloader
+from simplarchiver import Feeder, FilterFeeder, FilterDownloader, Downloader
+
+
+def default_httpx_client_opt_generator():
+    return {
+        'timeout': httpx.Timeout(10.0, connect=10.0),
+        'transport': httpx.AsyncHTTPTransport(retries=5)
+    }
 
 
 class RSSHubFeeder(Feeder):
@@ -20,8 +27,15 @@ class RSSHubFeeder(Feeder):
         self.__url = url
         self.__logger = logger
 
+        """
+        一个函数，返回发起请求所用的httpx.AsyncClient()设置
+        httpx.AsyncHTTPTransport不能重复使用，所以每次都得返回新的
+        """
+        self.httpx_client_opt_generator: Callable[[], Dict] = default_httpx_client_opt_generator
+
     async def get_feeds(self):
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(**self.httpx_client_opt_generator()) as client:
+            self.__logger.debug("RSSHubFeeder request rss xml from %s" % self.__url)
             response = await client.get(self.__url)
             self.__logger.debug("RSSHubFeeder get an rss xml %s" % response.text)
             root = ElementTree.XML(response.text)
@@ -52,15 +66,23 @@ class RSSHubMultiPageFeeder(Feeder):
         """
         url_gen是输入数字生成url的函数
         max_pages是最多获取多少页
+        httpx_client_opt是请求所用的httpx.AsyncClient()设置
         """
         self.__url_gen = url_gen
         self.__max_pages = max_pages
         self.__logger = logger
 
+        """
+        一个函数，返回发起请求所用的httpx.AsyncClient()设置
+        httpx.AsyncHTTPTransport不能重复使用，所以每次都得返回新的
+        """
+        self.httpx_client_opt_generator: Callable[[], Dict] = default_httpx_client_opt_generator
+
     async def get_feeds(self):
         for page in range(0, self.__max_pages):
             url = self.__url_gen(page)
             rf = RSSHubFeeder(url, self.__logger)
+            rf.httpx_client_opt = self.httpx_client_opt_generator
             self.__logger.info("RSSHubMultiPageFeeder downloading page %d: %s" % (page, url))
             rfn = 0  # 计数
             async for item in rf.get_feeds():
@@ -115,6 +137,7 @@ class TTRSSClient(httpx.AsyncClient):
 
     async def api(self, data: dict):
         data['sid'] = self.__sid
+        self.__logger.debug("Post data to TTRSS API %s: %s" % (self.__url, data))
         return (await super().post(self.__url, content=json.dumps(data))).json()['content']
 
 
@@ -124,13 +147,23 @@ class TTRSSCatFeeder(Feeder):
     返回指定的Category中的所有订阅链接和最新的内容链接
     """
 
-    def __init__(self, cat_id: int, logger: logging.Logger = logging.getLogger("TTRSSFeeder"), **kwargs):
+    def __init__(self, url: str, username: str, password: str, cat_id: int,
+                 logger: logging.Logger = logging.getLogger("TTRSSFeeder")):
+        self.ttrss_client_opt = {
+            'url': url, 'username': username, 'password': password,
+            'logger': logger
+        }  # 发起请求所用的ttrss客户端设置
         self.__cat_id = cat_id
         self.__logger = logger
-        self.__client = TTRSSClient(logger=logger, **kwargs)
+
+        """
+        一个函数，返回发起请求所用的httpx.AsyncClient()设置
+        httpx.AsyncHTTPTransport不能重复使用，所以每次都得返回新的
+        """
+        self.httpx_client_opt_generator: Callable[[], Dict] = default_httpx_client_opt_generator
 
     async def get_feeds(self):
-        async with self.__client as client:
+        async with TTRSSClient(**self.httpx_client_opt_generator(), **self.ttrss_client_opt) as client:
             self.__logger.info("TTRSSFeeder succeeded login to TTRSS")
             feeds = await client.api({
                 "op": "getFeeds",
@@ -161,10 +194,16 @@ class TTRSSHubLinkFeeder(FilterFeeder):
         super().__init__(base_feeder)
         self.__logger = logger
 
+        """
+        一个函数，返回发起请求所用的httpx.AsyncClient()设置
+        httpx.AsyncHTTPTransport不能重复使用，所以每次都得返回新的
+        """
+        self.httpx_client_opt_generator: Callable[[], Dict] = default_httpx_client_opt_generator
+
     async def filter(self, item):
         rss_link = item["link"]
         try:
-            async with httpx.AsyncClient() as client:
+            async with httpx.AsyncClient(**self.httpx_client_opt_generator()) as client:
                 response = await client.get(rss_link)
                 root = ElementTree.XML(response.content)
                 channel = root.find('channel')
