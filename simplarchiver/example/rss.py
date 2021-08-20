@@ -6,7 +6,7 @@ from typing import Dict, Callable
 
 import httpx
 
-from simplarchiver import Feeder
+from simplarchiver import Feeder, FilterFeeder
 
 
 class RSSHubFeeder(Feeder):
@@ -149,3 +149,28 @@ class TTRSSCatFeeder(Feeder):
                 i = {'recent': content[0]['link'], 'link': feed['feed_url']}
                 self.__logger.info("TTRSSFeeder yield an item: %s" % json.dumps(i))
                 yield i
+
+
+class TTRSSHubLinkFeeder(FilterFeeder):
+    """
+    从TTRSS返回的Category Feed中获取原始link
+    实际上就是在filter中根据TTRSS返回的item["link"]获取RSS Feed里面的link标签内容，以此替换item["link"]
+    """
+
+    def __init__(self, base_feeder: TTRSSCatFeeder, logger: logging.Logger = logging.getLogger("TTRSSHubLinkFeeder")):
+        super().__init__(base_feeder)
+        self.__logger = logger
+
+    async def filter(self, item):
+        rss_link = item["link"]
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.get(rss_link)
+                root = ElementTree.XML(response.content)
+                channel = root.find('channel')
+                link = channel.find('link').text
+                item["link"] = link
+            self.__logger.info("Got the original link of %s: %s" % (rss_link, item["link"]))
+            return item
+        except Exception as e:
+            self.__logger.error("Cannot get original link from %s, error is %s" % (rss_link, e))
