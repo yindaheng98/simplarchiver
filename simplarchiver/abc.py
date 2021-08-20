@@ -81,3 +81,37 @@ class CallbackDownloader(Downloader):
 
     async def download(self, item):
         return await self.callback(item, await self.__base_downloader.download(item))
+
+
+'''下面这个抽象类是FilterDownloader和CallbackDownloader的杂交'''
+
+
+class FilterCallbackDownloader(Downloader):
+    """同时具有过滤和回调功能的Downloader"""
+
+    def __init__(self, base_downloader: Downloader):
+        """从一个基本的Downloader生成具有过滤和回调功能Downloader"""
+        self.__base_downloader = base_downloader
+
+    @abc.abstractmethod
+    async def callback(self, item, return_code):
+        """
+        回调函数接受两个参数，一个是item，一个是被封装的基本Downloader的返回值
+        """
+        pass
+
+    @abc.abstractmethod
+    async def filter(self, item):
+        """
+        如果过滤器返回了None，则会被过滤掉，不会被Download
+        过滤器内可以修改item
+        """
+        return item
+
+    async def download(self, item):
+        """过滤+回调"""
+        item = await self.filter(item)
+        if item is not None:  # 如果过滤器返回了None，则会被过滤掉，不会被Download
+            return_code = await self.__base_downloader.download(item)
+            await self.callback(item, return_code)
+            return return_code  # 调用了回调之后将return_code继续向下一级返回

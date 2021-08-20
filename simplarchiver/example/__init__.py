@@ -3,3 +3,4 @@ from .random import RandomFeeder, RandomFilterFeeder, RandomFilterDownloader
 from .just import JustDownloader, JustLogCallbackDownloader
 from .rss import RSSHubFeeder, RSSHubMultiPageFeeder, TTRSSCatFeeder
 from .subprocess import SubprocessDownloader
+from .update import UpdateDownloader
