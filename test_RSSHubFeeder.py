@@ -4,10 +4,10 @@ from datetime import timedelta
 
 from simplarchiver import Pair
 from simplarchiver.example import RSSHubFeeder, RSSHubMultiPageFeeder, TTRSSCatFeeder, JustDownloader, \
-    SubprocessDownloader, JustLogCallbackDownloader
+    SubprocessDownloader, JustLogCallbackDownloader, UpdateDownloader
 from test_secret import ttrss_data, rsshub_data, rsshub_multipage_data
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
 
 def log(msg):
@@ -39,7 +39,15 @@ subprocess_downloaders = [
         SubprocessDownloader(
             lambda x: 'ping 127.0.0.1', 'gbk',
             logger=logging.getLogger("test_SubprocessDownloader")),
-        logger=logging.getLogger("test_JustLogCallbackDownloader"))
+        logger=logging.getLogger("test_JustLogCallbackDownloader")),
+    UpdateDownloader(
+        base_downloader=SubprocessDownloader(
+            lambda x: 'ping 127.0.0.1', 'gbk',
+            logger=logging.getLogger("test_SubprocessDownloader")),
+        update_list_path="./test.json",
+        update_list_pair_gen=lambda i: (i['link'], i['pubDate']),
+        logger=logging.getLogger("test_UpdateDownloader")
+    )
 ]
 
 pair = Pair(ttrss_feeders + rsshub_feeders + rsshub_multipage_feeders,

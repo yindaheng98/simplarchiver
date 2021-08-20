@@ -42,4 +42,5 @@ class SubprocessDownloader(Downloader):
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE)
         await asyncio.gather(self.__readline_info(proc.stdout), self.__readline_debug(proc.stderr))
-        return await proc.wait()  # 返回returncode
+        return_code = await proc.wait()
+        return None if return_code <= 0 else return_code  # 返回return code
