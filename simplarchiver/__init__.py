@@ -1,2 +1,2 @@
-from .abc import Feeder, Downloader, FilterFeeder, FilterDownloader
+from .abc import Feeder, Downloader, FilterFeeder, FilterDownloader, CallbackDownloader
 from .controller import Pair, Controller

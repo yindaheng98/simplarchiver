@@ -2,7 +2,7 @@ import asyncio
 import logging
 import uuid
 
-from simplarchiver import Downloader
+from simplarchiver import Downloader, CallbackDownloader
 
 
 class JustDownloader(Downloader):
@@ -27,3 +27,16 @@ class JustDownloader(Downloader):
         self.log('For the item %s, time to wake up' % item)
         JustDownloader.running -= 1
         self.log('Now there are %d SleepDownloader awaiting' % JustDownloader.running)
+
+
+class JustLogCallbackDownloader(CallbackDownloader):
+    """只是把Callback的内容输出到log而已"""
+
+    def __init__(self, base_downloader: Downloader,
+                 logger: logging.Logger = logging.getLogger("JustLogCallbackDownloader")):
+        super(JustLogCallbackDownloader, self).__init__(base_downloader)
+        self.__logger = logger
+
+    async def callback(self, item, return_code):
+        self.__logger.info(
+            "JustLogCallbackDownloader run its callback, return_code: %s, item: %s" % (return_code, item))
