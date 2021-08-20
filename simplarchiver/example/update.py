@@ -76,22 +76,24 @@ class UpdateDownloader(FilterCallbackDownloader):
 
     async def filter(self, item):
         """过滤掉更新列表里已有记录且tag值相同的item"""
-        try:
-            uid, utag = self.__update_list_pair_gen(item)
-            last_utag = await self.__update_list.get(uid)
-            self.__logger.info('This update tag is %s; last update tag is %s' % (utag, last_utag))
-            if last_utag != utag:
-                self.__logger.info('Item with update tag id %s will be downloaded' % uid)
-                return item
-            else:
-                self.__logger.info('Item with update tag id %s will be skipped' % uid)
-        except Exception as e:
-            self.__logger.info('Cannot get update tag from %s, it will be downloaded, error: %s' % (item, e))
+        uid, utag = self.__update_list_pair_gen(item)
+        if uid is None or utag is None:
+            self.__logger.info('Update tag is None, item %s will be downloaded' % item)
             return item
+        last_utag = await self.__update_list.get(uid)
+        self.__logger.info('This update tag is %s; last update tag is %s' % (utag, last_utag))
+        if last_utag != utag:
+            self.__logger.info('Item with update tag id %s will be downloaded' % uid)
+            return item
+        else:
+            self.__logger.info('Item with update tag id %s will be skipped' % uid)
 
     async def callback(self, item, return_code):
         """如果下载成功就刷新更新列表里对应的item的tag值"""
         uid, utag = self.__update_list_pair_gen(item)
+        if uid is None or utag is None:
+            self.__logger.info('Update tag is None, update of item %s will not be writen' % item)
+            return
         if return_code is None:
             self.__logger.info('Download finished, update tag %s with the value %s will be writen' % (uid, utag))
             await self.__update_list.put(uid, utag)

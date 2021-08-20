@@ -50,13 +50,13 @@ subprocess_downloaders = [
             lambda x: 'ping 127.0.0.1', 'gbk',
             logger=logging.getLogger("test_SubprocessDownloader")),
         update_list_path="./test.json",
-        update_list_pair_gen=lambda i: (i['link'], i['pubDate']),
+        update_list_pair_gen=lambda i: (i['link'], i['pubDate']) if 'link' in i and 'pubDate' in i else (None, None),
         logger=logging.getLogger("test_UpdateDownloader")
     )
 ]
 
 pair = Pair(ttrss_feeders + rsshub_feeders + rsshub_multipage_feeders,
             just_downloaders + eo_downloaders + ee_downloaders + subprocess_downloaders,
-            timedelta(seconds=5), 4, 4)
+            timedelta(seconds=5), 4, 8)
 log("pair.coroutine_once()")
 asyncio.run(pair.coroutine_once())

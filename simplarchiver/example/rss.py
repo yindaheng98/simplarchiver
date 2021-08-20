@@ -202,17 +202,14 @@ class TTRSSHubLinkFeeder(FilterFeeder):
 
     async def filter(self, item):
         rss_link = item["link"]
-        try:
-            async with httpx.AsyncClient(**self.httpx_client_opt_generator()) as client:
-                response = await client.get(rss_link)
-                root = ElementTree.XML(response.content)
-                channel = root.find('channel')
-                link = channel.find('link').text
-                item["link"] = link
-            self.__logger.info("Got the original link of %s: %s" % (rss_link, item["link"]))
-            return item
-        except Exception as e:
-            self.__logger.error("Cannot get original link from %s, error is %s" % (rss_link, e))
+        async with httpx.AsyncClient(**self.httpx_client_opt_generator()) as client:
+            response = await client.get(rss_link)
+            root = ElementTree.XML(response.content)
+            channel = root.find('channel')
+            link = channel.find('link').text
+            item["link"] = link
+        self.__logger.info("Got the original link of %s: %s" % (rss_link, item["link"]))
+        return item
 
 
 class EnclosureOnlyDownloader(FilterDownloader):
