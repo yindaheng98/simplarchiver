@@ -208,6 +208,7 @@ class TTRSSHubLinkFeeder(FilterFeeder):
             channel = root.find('channel')
             link = channel.find('link').text
             item["link"] = link
+            item['pubDate'] = list(root.iter('item'))[0].find('pubDate').text
         self.__logger.info("Got the original link of %s: %s" % (rss_link, item["link"]))
         return item
 
