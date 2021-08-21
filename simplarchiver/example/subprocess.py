@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from typing import Callable, Any, Awaitable
+from typing import Callable
 
 from simplarchiver import Downloader
 

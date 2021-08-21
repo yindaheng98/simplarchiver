@@ -2,6 +2,8 @@ import asyncio
 import logging
 from datetime import timedelta
 
+import httpx
+
 from simplarchiver import Pair
 from simplarchiver.example import RSSHubFeeder, RSSHubMultiPageFeeder, TTRSSCatFeeder, TTRSSHubLinkFeeder
 from simplarchiver.example import JustDownloader, SubprocessDownloader, JustLogCallbackDownloader, UpdateDownloader
@@ -27,7 +29,11 @@ ttrss_feeders = [TTRSSHubLinkFeeder(
 
 rsshub_feeders = [RSSHubFeeder(
     url=rsshub,
-    logger=logging.getLogger("test_RSSHubFeeder %s" % rsshub)
+    logger=logging.getLogger("test_RSSHubFeeder %s" % rsshub),
+    httpx_client_opt_generator=lambda: {
+        'timeout': httpx.Timeout(20.0),
+        'transport': httpx.AsyncHTTPTransport(retries=10)
+    }
 ) for rsshub in rsshub_data]
 
 rsshub_multipage_feeders = [RSSHubMultiPageFeeder(
