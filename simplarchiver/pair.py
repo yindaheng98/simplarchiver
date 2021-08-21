@@ -131,5 +131,6 @@ class Pair:
             await dc.join()
 
     async def coroutine_forever(self):
+        await self.coroutine_once()
         while await asyncio.sleep(self.__timedelta.total_seconds(), result=True):
             await self.coroutine_once()
