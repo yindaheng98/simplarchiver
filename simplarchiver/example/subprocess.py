@@ -26,17 +26,17 @@ class SubprocessDownloader(Downloader):
     async def __readline_info(self, f):
         async for line in f:
             self.__logger.info(
-                'SubprocessDownloader subprocess stdout: %s' % line.decode(self.__stdout_encoding).strip())
+                'stdout  | %s' % line.decode(self.__stdout_encoding).strip())
 
     async def __readline_debug(self, f):
         async for line in f:
-            self.__logger.debug(
-                'SubprocessDownloader subprocess stderr: %s' % line.decode(self.__stdout_encoding).strip())
+            self.__logger.info(
+                'stderr  | %s' % line.decode(self.__stdout_encoding).strip())
 
     async def download(self, item):
-        self.__logger.debug("SubprocessDownloader get an item: %s" % item)
+        self.__logger.debug("item    | %s" % item)
         cmd = self.__cmd_gen(item)
-        self.__logger.info("SubprocessDownloader run cmd: %s" % cmd)
+        self.__logger.info("command | %s" % cmd)
         proc = await asyncio.create_subprocess_shell(
             cmd,
             stdout=asyncio.subprocess.PIPE,
