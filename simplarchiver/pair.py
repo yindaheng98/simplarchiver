@@ -130,7 +130,14 @@ class Pair:
         for dc in self.__dcs:  # 等待下载器的所有下载项目完成后才退出
             await dc.join()
 
+    async def __coroutine_once_no_raise(self):
+        task = asyncio.create_task(self.coroutine_once())
+        try:
+            await task
+        except Exception:
+            return
+
     async def coroutine_forever(self):
-        await self.coroutine_once()
+        await self.__coroutine_once_no_raise()
         while await asyncio.sleep(self.__timedelta.total_seconds(), result=True):
-            await self.coroutine_once()
+            await self.__coroutine_once_no_raise()
