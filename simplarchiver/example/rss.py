@@ -11,7 +11,7 @@ from simplarchiver import Feeder, FilterFeeder, FilterDownloader, Downloader
 
 def default_httpx_client_opt_generator():
     return {
-        'timeout': httpx.Timeout(10.0, connect=10.0),
+        'timeout': httpx.Timeout(10.0),
         'transport': httpx.AsyncHTTPTransport(retries=5)
     }
 
@@ -23,34 +23,34 @@ class RSSHubFeeder(Feeder):
     如果有enclosure还会返回enclosure值
     """
 
-    def __init__(self, url: str, logger: logging.Logger = logging.getLogger("RSSHubFeeder")):
-        self.__url = url
-        self.__logger = logger
-
+    def __init__(self, url: str, logger: logging.Logger = logging.getLogger("RSSHubFeeder"),
+                 httpx_client_opt_generator: Callable[[], Dict] = default_httpx_client_opt_generator):
         """
-        一个函数，返回发起请求所用的httpx.AsyncClient()设置
+        httpx_client_opt_generator是一个函数，返回发起请求所用的httpx.AsyncClient()设置
         httpx.AsyncHTTPTransport不能重复使用，所以每次都得返回新的
         """
-        self.httpx_client_opt_generator: Callable[[], Dict] = default_httpx_client_opt_generator
+        self.__url = url
+        self.__logger = logger
+        self.httpx_client_opt_generator = httpx_client_opt_generator
 
     async def get_feeds(self):
         async with httpx.AsyncClient(**self.httpx_client_opt_generator()) as client:
-            self.__logger.debug("RSSHubFeeder request rss xml from %s" % self.__url)
+            self.__logger.debug("get rss xml from %s" % self.__url)
             response = await client.get(self.__url)
-            self.__logger.debug("RSSHubFeeder get an rss xml %s" % response.text)
+            self.__logger.debug("got rss xml: %s" % response.text)
             root = ElementTree.XML(response.text)
             fed = set()  # 用集合去除重复项
             for item in root.iter('item'):
                 pubDate = item.find('pubDate').text
                 link = item.find('link').text
-                self.__logger.debug("RSSHubFeeder get an link %s and pubDate %s from rss xml" % (link, pubDate))
+                self.__logger.debug("got fromrss xml: link %s and pubDate %s" % (link, pubDate))
                 if link not in fed:
                     fed.add(link)
                     i = {'pubDate': pubDate, 'link': link}
                     if item.find('enclosure') is not None:
                         enclosure = item.find('enclosure').get("url")
                         i['enclosure'] = enclosure
-                    self.__logger.info("RSSHubFeeder yield an item: %s" % json.dumps(i))
+                    self.__logger.info("yield item: %s" % json.dumps(i))
                     yield i
 
 
@@ -62,28 +62,25 @@ class RSSHubMultiPageFeeder(Feeder):
     """
 
     def __init__(self, url_gen: Callable[[int], str], max_pages: int = 999,
-                 logger: logging.Logger = logging.getLogger("RSSHubMultiPageFeeder")):
+                 logger: logging.Logger = logging.getLogger("RSSHubMultiPageFeeder"),
+                 httpx_client_opt_generator: Callable[[], Dict] = default_httpx_client_opt_generator):
         """
         url_gen是输入数字生成url的函数
         max_pages是最多获取多少页
-        httpx_client_opt是请求所用的httpx.AsyncClient()设置
+        httpx_client_opt_generator是一个函数，返回发起请求所用的httpx.AsyncClient()设置
+        httpx.AsyncHTTPTransport不能重复使用，所以每次都得返回新的
         """
         self.__url_gen = url_gen
         self.__max_pages = max_pages
         self.__logger = logger
-
-        """
-        一个函数，返回发起请求所用的httpx.AsyncClient()设置
-        httpx.AsyncHTTPTransport不能重复使用，所以每次都得返回新的
-        """
-        self.httpx_client_opt_generator: Callable[[], Dict] = default_httpx_client_opt_generator
+        self.httpx_client_opt_generator = httpx_client_opt_generator
 
     async def get_feeds(self):
         for page in range(0, self.__max_pages):
             url = self.__url_gen(page)
             rf = RSSHubFeeder(url, self.__logger)
             rf.httpx_client_opt = self.httpx_client_opt_generator
-            self.__logger.info("RSSHubMultiPageFeeder downloading page %d: %s" % (page, url))
+            self.__logger.info("got page %d: %s" % (page, url))
             rfn = 0  # 计数
             async for item in rf.get_feeds():
                 rfn += 1
@@ -111,18 +108,18 @@ class TTRSSClient(httpx.AsyncClient):
     async def __aenter__(self):
         for url in TTRSSClient.sem_list:  # 信号量必须在事件循环开始后生成
             if TTRSSClient.sem_list[url] is None:  # 已经生成的信号量不要变
-                self.__logger.debug('TTRSSClient Semaphore for url %s initialized' % url)
+                self.__logger.debug('semaphore for TTRSS API %s initialized' % url)
                 TTRSSClient.sem_list[url] = asyncio.Semaphore(1)  # 生成信号量
         await TTRSSClient.sem_list[self.__url].__aenter__()  # 同一时刻一个链接只能有一个客户端登录
-        self.__logger.debug('TTRSSClient Semaphore for url %s got' % self.__url)
+        self.__logger.debug('semaphore for TTRSS API %s got' % self.__url)
         await super().__aenter__()
-        self.__logger.debug('TTRSSClient httpx for url %s initialized' % self.__url)
+        self.__logger.debug('httpx cli for TTRSS API %s initialized' % self.__url)
         self.__sid = (await super().post(self.__url, content=json.dumps({
             'op': 'login',
             'user': self.__username,
             'password': self.__password
         }))).json()['content']['session_id']
-        self.__logger.info('TTRSSClient login successful, sid: %s' % self.__sid)
+        self.__logger.info('TTRSS API login successful, sid: %s' % self.__sid)
         return self
 
     async def __aexit__(self, *args, **kwargs):
@@ -131,13 +128,13 @@ class TTRSSClient(httpx.AsyncClient):
             "op": "logout"
         }))).json()
         await super().__aexit__(*args, **kwargs)
-        self.__logger.info('TTRSSClient logout successful, sid: %s' % self.__sid)
+        self.__logger.info('TTRSS API logout successful, sid: %s' % self.__sid)
         await TTRSSClient.sem_list[self.__url].__aexit__(*args, **kwargs)
-        self.__logger.debug('TTRSSClient Semaphore for url %s released' % self.__url)
+        self.__logger.debug('semaphore for TTRSS API %s released' % self.__url)
 
     async def api(self, data: dict):
         data['sid'] = self.__sid
-        self.__logger.debug("Post data to TTRSS API %s: %s" % (self.__url, data))
+        self.__logger.debug("post data to  TTRSS API %s: %s" % (self.__url, data))
         return (await super().post(self.__url, content=json.dumps(data))).json()['content']
 
 
@@ -148,29 +145,29 @@ class TTRSSCatFeeder(Feeder):
     """
 
     def __init__(self, url: str, username: str, password: str, cat_id: int,
-                 logger: logging.Logger = logging.getLogger("TTRSSFeeder")):
+                 logger: logging.Logger = logging.getLogger("TTRSSFeeder"),
+                 httpx_client_opt_generator: Callable[[], Dict] = default_httpx_client_opt_generator):
+        """
+        httpx_client_opt_generator是一个函数，返回发起请求所用的httpx.AsyncClient()设置
+        httpx.AsyncHTTPTransport不能重复使用，所以每次都得返回新的
+        """
         self.ttrss_client_opt = {
             'url': url, 'username': username, 'password': password,
             'logger': logger
         }  # 发起请求所用的ttrss客户端设置
         self.__cat_id = cat_id
         self.__logger = logger
-
-        """
-        一个函数，返回发起请求所用的httpx.AsyncClient()设置
-        httpx.AsyncHTTPTransport不能重复使用，所以每次都得返回新的
-        """
-        self.httpx_client_opt_generator: Callable[[], Dict] = default_httpx_client_opt_generator
+        self.httpx_client_opt_generator = httpx_client_opt_generator
 
     async def get_feeds(self):
         async with TTRSSClient(**self.httpx_client_opt_generator(), **self.ttrss_client_opt) as client:
-            self.__logger.info("TTRSSFeeder succeeded login to TTRSS")
+            self.__logger.info("succeeded login to TTRSS")
             feeds = await client.api({
                 "op": "getFeeds",
                 "cat_id": self.__cat_id,
                 "limit": None
             })
-            self.__logger.debug("TTRSSFeeder got an feed list: %s" % json.dumps(feeds))
+            self.__logger.debug("got cat data of cat %d: %s" % (self.__cat_id, json.dumps(feeds)))
             for feed in feeds:
                 content = await client.api({
                     "op": "getHeadlines",
@@ -180,7 +177,7 @@ class TTRSSCatFeeder(Feeder):
                     "order_by": "feed_dates"
                 })
                 i = {'recent': content[0]['link'], 'link': feed['feed_url']}
-                self.__logger.info("TTRSSFeeder yield an item: %s" % json.dumps(i))
+                self.__logger.info("yield an item: %s" % json.dumps(i))
                 yield i
 
 
@@ -190,15 +187,15 @@ class TTRSSHubLinkFeeder(FilterFeeder):
     实际上就是在filter中根据TTRSS返回的item["link"]获取RSS Feed里面的link标签内容，以此替换item["link"]
     """
 
-    def __init__(self, base_feeder: TTRSSCatFeeder, logger: logging.Logger = logging.getLogger("TTRSSHubLinkFeeder")):
-        super().__init__(base_feeder)
-        self.__logger = logger
-
+    def __init__(self, base_feeder: TTRSSCatFeeder, logger: logging.Logger = logging.getLogger("TTRSSHubLinkFeeder"),
+                 httpx_client_opt_generator: Callable[[], Dict] = default_httpx_client_opt_generator):
         """
-        一个函数，返回发起请求所用的httpx.AsyncClient()设置
+        httpx_client_opt_generator是一个函数，返回发起请求所用的httpx.AsyncClient()设置
         httpx.AsyncHTTPTransport不能重复使用，所以每次都得返回新的
         """
-        self.httpx_client_opt_generator: Callable[[], Dict] = default_httpx_client_opt_generator
+        super().__init__(base_feeder)
+        self.__logger = logger
+        self.httpx_client_opt_generator = httpx_client_opt_generator
 
     async def filter(self, item):
         rss_link = item["link"]
@@ -209,7 +206,7 @@ class TTRSSHubLinkFeeder(FilterFeeder):
             link = channel.find('link').text
             item["link"] = link
             item['pubDate'] = list(root.iter('item'))[0].find('pubDate').text
-        self.__logger.info("Got the original link of %s: %s" % (rss_link, item["link"]))
+        self.__logger.info("got the original link of %s: %s" % (rss_link, item["link"]))
         return item
 
 
@@ -223,10 +220,10 @@ class EnclosureOnlyDownloader(FilterDownloader):
 
     async def filter(self, item):
         if 'enclosure' in item:
-            self.__logger.info("This item has an enclosure %s, keep it" % item['enclosure'])
+            self.__logger.info("This item has an enclosure, keep it: %s" % item)
             return item
         else:
-            self.__logger.info("This item %s does not have an enclosure, drop it" % item)
+            self.__logger.info("This item has no enclosure, drop it: %s" % item)
             return None
 
 
@@ -240,8 +237,8 @@ class EnclosureExceptDownloader(FilterDownloader):
 
     async def filter(self, item):
         if 'enclosure' in item:
-            self.__logger.info("This item has an enclosure %s, drop it" % item['enclosure'])
+            self.__logger.info("This item has an enclosure, drop it: %s" % item)
             return None
         else:
-            self.__logger.info("This item %s does not have an enclosure, keep it" % item)
+            self.__logger.info("This item has no enclosure, keep it: %s" % item)
             return item

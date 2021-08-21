@@ -78,26 +78,25 @@ class UpdateDownloader(FilterCallbackDownloader):
         """过滤掉更新列表里已有记录且tag值相同的item"""
         uid, utag = self.__update_list_pair_gen(item)
         if uid is None or utag is None:
-            self.__logger.info('Update tag is None, item %s will be downloaded' % item)
+            self.__logger.info('update filter   | Update tag   is None  , item will be downloaded: %s' % item)
             return item
         last_utag = await self.__update_list.get(uid)
-        self.__logger.info('This update tag is %s; last update tag is %s' % (utag, last_utag))
+        self.__logger.debug('update filter   | This update tag is %s; last update tag is %s' % (utag, last_utag))
         if last_utag != utag:
-            self.__logger.info('Item with update tag id %s will be downloaded' % uid)
+            self.__logger.info('update filter   | Update tag   updated  , item will be downloaded: %s' % item)
             return item
         else:
-            self.__logger.info('Item with update tag id %s will be skipped' % uid)
+            self.__logger.info('update filter   | Update tag not updated, item will be skipped   : %s' % uid)
 
     async def callback(self, item, return_code):
         """如果下载成功就刷新更新列表里对应的item的tag值"""
         uid, utag = self.__update_list_pair_gen(item)
         if uid is None or utag is None:
-            self.__logger.info('Update tag is None, update of item %s will not be writen' % item)
+            self.__logger.info('update callback | Update tag is None, update will not be writen: %s' % item)
             return
         if return_code is None:
-            self.__logger.info('Download finished, update tag %s with the value %s will be writen' % (uid, utag))
+            self.__logger.info('update callback | Download finished , update will be writen    : %s' % item)
             await self.__update_list.put(uid, utag)
         else:
             self.__logger.info(
-                'Downloader exited with the return code %s, the update tag %s with the value %s will not be writen' % (
-                    return_code, uid, utag))
+                'update callback | Downloader exit %s, update will not be writen: %s' % (return_code, item))
