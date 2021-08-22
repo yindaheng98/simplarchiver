@@ -1,23 +1,254 @@
 # simplarchiver
+
 一个简单的可扩展聚合异步下载器框架（Python协程小练习）
 
-简单到只有两种自定义的组件：
-* feeder：获取要下载的items
-* downloader：接收feeder给的items，进行下载
+针对的问题：定时爬虫
+* 我需要使用几种不同的方法获取下载链接
+* 我所获取到的下载链接包含很多不同方面的内容，每个下载链接都需要使用几种不同的方法进行下载
+* 不同的网站有各自的限制，获取下载链接和下载过程都需要限制并发数
+* 我需要以指定的时间间隔执行爬虫过程
 
-和一个核心组件controller。核心组件的功能是：
-* 调用feeder获取要下载的items，调用downloader进行下载
-* 维护一个feeder-downloader对列表
-* 定时执行feeder-downloader对列表中的下载任务
-* 维护feeder和downloader的任务队列及线程池
+我想自定义的东西：
+* 获取下载链接的方式
+* 下载过程
 
-程序执行的流程如下：
-1. 创建downloader下载队列，启动downloader等待下载
-2. 启动feeder获取要下载的items
-3. 对于每个item，在所有的downloader下载队列里面放一个
-4. items发完之后向每个downloader下载队列发送None作为停止信号
-5. downloader运行完所有的下载任务后收到最后的停止信号就退出
-6. feeder等待所有downloader退出
-7. sleep指定的时间，回到步骤1
+我想让框架帮我管理哪些东西：
+* 限制并发数
+* 将下载链接传给下载器
+* 出错时自动重试
+* 以指定时间间隔运行
 
-一些例程可以参见`example`和`test_*.py`。
+## 基本思想
+
+名词解释：
+
+| 名词           | 释义                                                                         |
+| -------------- | ---------------------------------------------------------------------------- |
+| **Item**       | 每一个Item描述了一个待下载的项目，可以看作是下载链接                         |
+| **Feeder**     | Item生产者，定义获取下载链接的过程，产生Item以供下载                         |
+| **Downloader** | Item消费者，定义获取下载过程，获取Item并依据其内容执行下载过程               |
+| **Pair**       | Feeder和Downloader所组成的集合，表示这些Feeder生产的Item要传给这些Downloader |
+
+系统的基本运行过程：
+
+在每个Pair内，将所有Feeder产生的所有Item交给所有Downloader进行下载
+* 不同Feeder所产生的Item一视同仁
+* 每个Downloader都会收到相同的Item序列
+
+```
+Feeder──┐        ┌──Downloader
+Feeder──┼──Pair──┼──Downloader
+Feeder──┘        └──Downloader
+```
+
+## 基本结构
+
+Item、Feeder、Downloader、Pair具体到代码中是四个类：
+
+| 名词           | 代码中的体现                                                                                        | 使用方法                                                                                                                           |
+| -------------- | --------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| **Item**       | `simplarchiver.Feeder.get_feeds`函数的迭代输出以及`simplarchiver.Downloader.download`函数的输入参数 | 完全由用户自定义，`simplarchiver`只会将其简单的从Feeder搬运到Downloader，不会对其进行操作                                          |
+| **Feeder**     | 一个抽象类`simplarchiver.Feeder`                                                                    | 用户继承此类构造自己的子类，从而自定义产生什么样的Item                                                                             |
+| **Downloader** | 一个抽象类`simplarchiver.Downloader`                                                                | 用户继承此类构造自己的子类，从而自定义对Item执行什么样的下载过程                                                                   |
+| **Pair**       | `simplarchiver.Pair`，其构造函数的包含`simplarchiver.Feeder`和`simplarchiver.Downloader`的列表      | 用户以自己定义的`simplarchiver.Feeder`和`simplarchiver.Downloader`子类列表为输入，调用构造函数构造其实例，调用其类方法执行下载过程 |
+
+### Feeder抽象类`simplarchiver.Feeder`
+
+`simplarchiver.Feeder`是包含一个异步迭代器函数`get_feeds`的抽象类，其迭代输出一个个的Item。
+
+```python
+import abc
+class Feeder(metaclass=abc.ABCMeta):
+    @abc.abstractmethod
+    async def get_feeds(self):
+        yield
+```
+
+继承此类，实现`get_feeds`函数，就能自定义产生什么样的Item。
+
+例如，一个只会睡觉的SleepFeeder，睡醒了就返回一个字符串作为Item（位于[simplarchiver/example/sleep.py](./simplarchiver/example/sleep.py)）：
+
+```python
+class SleepFeeder(Feeder):
+    """一个只会睡觉的Feeder"""
+    running: int = 0
+
+    def __init__(self, i=uuid.uuid4(), n=10, seconds=None, rand_max=1):
+        """
+        i表示Feeder的编号
+        n表示总共要返回多少个item
+        如果指定了seconds，每次就睡眠seconds秒
+        如果没有指定seconds，那就睡眠最大rand_max秒的随机时长
+        """
+        self.seconds = seconds
+        self.rand_max = rand_max
+        self.n = n
+        self.id = i
+        self.log('Initialized: seconds=%s, rand_max=%s, n=%s' % (seconds, rand_max, n))
+
+    def log(self, msg):
+        logging.info('SleepFeeder     %s | %s' % (self.id, msg))
+
+    async def get_feeds(self):
+        for i in range(0, self.n):
+            t = random.random() * self.rand_max if self.seconds is None else self.seconds
+            SleepFeeder.running += 1
+            self.log('Now there are %d SleepFeeder awaiting including me, I will sleep %f seconds' % (SleepFeeder.running, t))
+            item = await asyncio.sleep(delay=t, result='item(i=%s,t=%s)' % (i, t))
+            self.log('I have slept %f seconds, time to wake up and return an item %s' % (t, item))
+            SleepFeeder.running -= 1
+            self.log('I wake up, Now there are %d SleepFeeder awaiting' % SleepFeeder.running)
+            yield item
+
+```
+
+### Downloader抽象类`simplarchiver.Downloader`
+
+`simplarchiver.Downloader`是包含一个以Item为输入的协程函数`download`的抽象类。
+
+```python
+import abc
+class Downloader(metaclass=abc.ABCMeta):
+    @abc.abstractmethod
+    async def download(self, item):
+        pass
+```
+
+继承此类，实现`download`函数，就能自定义对Item执行什么样的下载过程。
+
+例如，一个只会睡觉的SleepDownloader，收到Item之后先睡一觉然后起床把Item以字符串的方式输出到命令行（位于[simplarchiver/example/sleep.py](./simplarchiver/example/sleep.py)）：
+
+```python
+class SleepDownloader(Downloader):
+    """一个只会睡觉的Downloader"""
+    running: int = 0
+
+    def __init__(self, i=uuid.uuid4(), seconds=None, rand_max=5):
+        """
+        i表示Feeder的编号
+        如果指定了seconds，每次就睡眠seconds秒
+        如果没有指定seconds，那就睡眠最大rand_max秒的随机时长
+        """
+        self.seconds = seconds
+        self.rand_max = rand_max
+        self.id = i
+        self.log('Initialized: seconds=%s, rand_max=%s' % (seconds, rand_max))
+
+    def log(self, msg):
+        logging.info('SleepDownloader %s | %s' % (self.id, msg))
+
+    async def download(self, item):
+        self.log('I get an item! %s' % item)
+        t = random.random() % self.rand_max if self.seconds is None else self.seconds
+        SleepDownloader.running += 1
+        self.log('Now there are %d SleepDownloader awaiting including me, I will sleep %f seconds' % (SleepDownloader.running, t))
+        item = await asyncio.sleep(delay=t, result=item)
+        self.log('I have slept %f seconds for the item %s, time to wake up' % (t, item))
+        SleepDownloader.running -= 1
+        self.log('I wake up, Now there are %d SleepDownloader awaiting' % SleepDownloader.running)
+```
+
+### Pair类`simplarchiver.Pair`
+
+`simplarchiver.Pair`包含了整个系统的`simplarchiver`核心逻辑。
+
+```python
+class Pair:
+    def __init__(self,
+                 feeders: List[Feeder] = [],
+                 downloaders: List[Downloader] = [],
+                 time_delta: timedelta = timedelta(minutes=30),
+                 feeder_concurrency: int = 3,
+                 downloader_concurrency: int = 3):
+        ...
+    ...
+    async def coroutine_once(self):
+        ...
+    async def coroutine_forever(self):
+        ...
+```
+
+其中，构造函数输入为：
+
+| 形参                     | 含义                                                                           |
+| ------------------------ | ------------------------------------------------------------------------------ |
+| `feeders`                | 由`simplarchiver.Feeder`构成的列表，用户在此处输入自己定义的Feeder             |
+| `downloaders`            | 由`simplarchiver.Downloader`构成的列表，用户在此处输入自己定义的Downloader     |
+| `time_delta`             | 在`coroutine_forever`函数中当一轮下载全部完成后，sleep多长时间再开始下一轮下载 |
+| `feeder_concurrency`     | 同一时刻最多可以并发运行多少个`simplarchiver.Feeder.get_feeds().__anext__()`   |
+| `downloader_concurrency` | 同一时刻最多可以并发运行多少个`simplarchiver.Downloader.download()`            |
+
+两个主要协程的运行过程为：
+
+`coroutine_once`，运行一次：
+1. 为`downloaders`里的Downloader创建下载队列，启动所有Downloader等待下载
+2. 启动`feeders`里的所有Feeder获取要下载的items
+3. 对于Feeder输出的每个item，在每个Downloader下载队列里面都push一个
+4. Feeder输出结束之后向每个Downloader下载队列发送`None`作为停止信号
+5. Downloader运行完所有的下载任务后收到最后的停止信号就退出
+6. 等待所有Downloader退出
+
+`coroutine_forever`，永久运行：
+1. 运行`coroutine_once`协程并等待其完成
+2. 如果`coroutine_once`抛出了错误，则忽略错误并立即回到步骤1
+3. 如果`coroutine_once`正常退出，则等待`time_delta`时长后再回到步骤1
+
+除了构造函数之外，协程开始前还可以使用这些方法修改设置：
+
+```python
+class Pair:
+    ...
+    def add_feeder(self, feeder: Feeder):
+        ...
+
+    def add_feeders(self, feeders: List[Feeder]):
+        ...
+
+    def add_downloader(self, downloader: Downloader):
+        ...
+
+    def add_downloaders(self, downloaders: List[Downloader]):
+        ...
+
+    def set_timedelta(self, timedelta: timedelta):
+        ...
+
+    def set_feeder_concurrency(self, n: int):
+        ...
+
+    def set_downloader_concurrency(self, n: int):
+        ...
+    ...
+```
+
+例如，使用上面定义的`SleepFeeder`和`SleepDownloader`构造一个包含4个Feeder和4个Downloader、以5秒为间隔运行的、Feeder和Downloader并发数分别为3和4的`simplarchiver.Pair`：
+
+```python
+from simplarchiver import Pair
+from simplarchiver.example import SleepFeeder, SleepDownloader
+from datetime import timedelta
+
+pair = Pair([SleepFeeder(0)], [SleepDownloader(0)], timedelta(seconds=5), 3, 4)
+for i in range(1, 4):
+    pair.add_feeder(SleepFeeder(i))
+for i in range(1, 4):
+    pair.add_downloader(SleepDownloader(i))
+```
+
+要启动运行，只需要使用`asyncio.run`运行`simplarchiver.Pair`的协程即可：
+
+```python
+import logging
+import asyncio
+
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+
+
+def log(msg):
+    logging.info('test_Pair | %s' % msg)
+
+log("pair.coroutine_once()")
+asyncio.run(pair.coroutine_once()) # 运行一次
+log("pair.coroutine_forever()")
+asyncio.run(pair.coroutine_forever()) # 永远运行
+```
