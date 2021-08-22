@@ -303,7 +303,7 @@ for i in range(1, 4):
 asyncio.run(controller.coroutine())
 ```
 
-## 扩展：Feeder的Item后处理和Downloader的Item预处理
+## 扩展：过滤
 
 进一步的需求：
 * 有些Item，我想处理或筛选一下再传给Downloader去下载
@@ -385,7 +385,7 @@ pair = Pair([
 
 ### 实现Downloader的Item预处理：Download过滤器[`simplarchiver.FilterDownloader`](simplarchiver/abc.py)
 
-和[`simplarchiver.FilterFeeder`](simplarchiver/abc.py)类似，只不过`filter`函数在`download`之前调用：
+和[`simplarchiver.FilterFeeder`](simplarchiver/abc.py)类似，只不过`simplarchiver.FilterFeeder`的`filter`函数在`get_feeds`的`yield`之后调用，`simplarchiver.FilterDownloader`的`filter`函数在`download`之前调用：
 
 ```python
 class FilterDownloader(Downloader):
@@ -452,3 +452,145 @@ pair = Pair([SleepFeeder(0)], [
 更多案例：
 * [`simplarchiver.example.EnclosureOnlyDownloader`](simplarchiver/example/rss.py)：筛选出包含`enclosure`字段的Item
 * [`simplarchiver.example.EnclosureExceptDownloader`](simplarchiver/example/rss.py)：筛选出不包含`enclosure`字段的Item
+
+## 扩展：Download回调
+
+进一步的需求：
+
+* 一个`Downloader.download`退出了，我想看看是下载完成了还是下载失败了
+* 在下载完成后，我还想根据下载完成或是失败的信息进行进一步的操作
+* 我定义了好几个不同的Downloader，它们的返回信息都差不多，进一步的操作的差不多，我不想在每个`Downloader.download`末尾都写一遍一样的代码
+
+实现：回调机制
+
+* 一个带有回调函数`callback`的抽象类
+* 继承自`simplarchiver.Downloader`
+* 内部存储一个`simplarchiver.Downloader`作为基础Downloader
+* 在其`download`中先调用基础Feeder的`download`，再将其返回值和Item作为`callback`的输入
+
+```python
+class CallbackDownloader(Downloader):
+    """具有回调功能的Downloader"""
+
+    def __init__(self, base_downloader: Downloader):
+        """从一个基本的Downloader生成具有回调功能Downloader"""
+        self.__base_downloader = base_downloader
+
+    @abc.abstractmethod
+    async def callback(self, item, return_code):
+        """
+        回调函数接受两个参数，一个是item，一个是被封装的基本Downloader的返回值
+        """
+        pass
+
+    async def download(self, item):
+        return await self.callback(item, await self.__base_downloader.download(item))
+```
+
+于是，用户可以继承此类，定义自己的回调，然后在构造时将需要回调的Downloader封装进去即可。例如，一个输出`download`函数返回值的回调[`simplarchiver.example.JustLogCallbackDownloader`](simplarchiver/example/just.py)：
+
+```python
+class JustLogCallbackDownloader(CallbackDownloader):
+    """只是把Callback的内容输出到log而已"""
+
+    def __init__(self, base_downloader: Downloader,
+                 logger: logging.Logger = logging.getLogger("JustLogCallbackDownloader")):
+        super(JustLogCallbackDownloader, self).__init__(base_downloader)
+        self.__logger = logger
+
+    async def callback(self, item, return_code):
+        self.__logger.info(
+            "JustLogCallbackDownloader run its callback, return_code: %s, item: %s" % (return_code, item))
+```
+
+在构造时将要过滤的Downloader封装进去即可：
+```python
+pair = Pair([SleepFeeder(0)], [
+    JustLogCallbackDownloader(
+        SleepDownloader(0)
+    )
+], timedelta(seconds=5), 4, 4)
+```
+
+Download回调自然也是可以嵌套的：
+```python
+pair = Pair([SleepFeeder(0)], [
+    JustLogCallbackDownloader(
+        JustLogCallbackDownloader(
+            SleepDownloader(0)
+        )
+    )
+], timedelta(seconds=5), 4, 4)
+```
+
+但要注意，嵌套之后，外层的回调函数获取到的`return_code`值来自于内层回调函数的返回值，而获取到的Item来自于外层的输入。
+
+## 扩展：同时使用Downloader过滤和回调
+
+同时使用了过滤和回调时，显然回调不会影响过滤函数的输入Item，进而也不会影响过滤过程；但反过来，过滤函数会影响到回调函数的输入参数。请看下例。
+
+过滤器在外、回调函数在内时，回调的`download`在过滤器的`download`内调用，因此`callback`收到的就是已经过滤过的Item，没有什么异常：
+
+```python
+pair = Pair([SleepFeeder(0)], [
+    RandomFilterDownloader(
+        JustLogCallbackDownloader(
+            SleepDownloader(0)
+        )
+    )
+], timedelta(seconds=5), 4, 4)
+```
+
+回调函数在外、过滤器在内时，过滤器的`download`在回调的`download`内调用，因此`callback`收到的是没有经过过滤的Item，且由于过滤器的`download`在要被过滤的Item处是直接退出的，所以在被过滤的Item处，`callback`收到的`return_code`值为`None`：
+
+```python
+pair = Pair([SleepFeeder(0)], [
+    JustLogCallbackDownloader(
+        RandomFilterDownloader(
+            SleepDownloader(0)
+        )
+    )
+], timedelta(seconds=5), 4, 4)
+```
+
+从逻辑上看，我们不需要对一个没有经过下载的Item调用回调，其`return_code`值也没有意义，在此系统中还容易和正常退出的`return_code`混淆。所以过滤器在外，回调函数在内的用法才是逻辑上正确的用法。
+
+为了避免同时使用过滤和回调的嵌套问题，索性定义了一个杂交类[`simplarchiver.FilterCallbackDownloader`](simplarchiver/abc.py)：
+
+```python
+class FilterCallbackDownloader(Downloader):
+    """同时具有过滤和回调功能的Downloader"""
+
+    def __init__(self, base_downloader: Downloader):
+        """从一个基本的Downloader生成具有过滤和回调功能Downloader"""
+        self.__base_downloader = base_downloader
+
+    @abc.abstractmethod
+    async def callback(self, item, return_code):
+        """
+        回调函数接受两个参数，一个是item，一个是被封装的基本Downloader的返回值
+        """
+        pass
+
+    @abc.abstractmethod
+    async def filter(self, item):
+        """
+        如果过滤器返回了None，则会被过滤掉，不会被Download
+        过滤器内可以修改item
+        """
+        return item
+
+    async def download(self, item):
+        """过滤+回调"""
+        item = await self.filter(item)
+        if item is not None:  # 如果过滤器返回了None，则会被过滤掉，不会被Download
+            return_code = await self.__base_downloader.download(item)
+            await self.callback(item, return_code)
+            return return_code  # 调用了回调之后将return_code继续向下一级返回
+```
+
+这个类就相当于一个过滤器在外、回调函数在内的嵌套。有了这个类，就没必要用过滤和回调实现既有过滤又有回调的Downloader了。尽量避免系统设计触及到已有系统的缺陷，不要为了图方便而用愚蠢的实现，在学习框架时好好从思想开始积累，在看到新框架时多多思考作者为什么要设计这样的框架、框架的基本思想是什么、使用者应该有一种什么样的共识、什么样的用法是好的、什么样的用法能解决问题但是不好、它不好在何处？是因为行为怪异难以捉摸而准备废弃？是因为开发时的疏忽而引入的不符合整体思想的实现？解决问题的方法千千万万，如果总是只采用查到的第一个方案作为解决方案而不经过对多种方案的思考和比较，那永远只能做代码的熟练搬运工，技术上永远不会有质的提升。不断追问解决方法背后的逻辑可以让人不由自主地去搜寻多种解决方案，即使有一个人云亦云的明显方案摆在眼前；在这样不断的在这种“无意义”的搜索上“浪费时间”的过程中，既有系统的核心思想和逻辑会逐渐地清晰，自己的对既有系统的直觉上的把握也会越来越接近作者的思维，解决问题的方式也会从“用网上搜到的解决方案”到“网上搜到的解决方案不太符合原作者的想法”到“自己思考解决方案”最后到“像原作者一样解决问题”。在不断的进步中你会逐渐发现搬运式编程的危害。一个优秀的系统可以让不同水平的使用者对一个相同的需求都写出大差不离的代码，这样即使不写注释其他人也能很容易地明白程序的意思，节约参与者的时间是开源项目大火的重要因素，如果一个开源项目目标明确，且只需要几分钟就能弄懂结构并按照自己的意愿添加功能，那只要它能解决某方面的需求，必定能成为优秀的开源项目。但这样优秀的系统难得一见，大部分情况下，大家都是用着“约定大于配置”的思想：程序这么写不是唯一的方法，也不一定是最好的方法，但我们在开发文档里约定大家就要这么写，不要自由发挥，那会让其他人在理解代码上浪费时间。大部分有名有姓的开源项目都是这么做的，因为这样可以极大地节约每个参与者的时间，更容易团结力量做大事。而搬运式编程则不符合这种套路。搬运式编程虽然能解决问题，但解决问题的方法都是一定条件下的产物，在计算机软件这一无比复杂的领域基本上不会有一种方法适用于多种情况。搬运式编程是“心中只有自己”甚至是心中只有“现在的自己”，连“未来维护程序时的自己”都没有，是一种目光短浅的做法。这种编程方式能极大地提升初期的开发效率，但遗患无穷。正确的方法是，不要搜索不到一个小时找到一个解决方案就欣喜若狂然后进入下一步，多搜索一些解决方案，多看看别人是的用法，读一读文档，体会一下作者的思想，看看自己站在作者的立场会做出什么样的东西，在回头看看作者是怎么解决问题的，最后再回头看看自己遇到的问题，这个问题为什么产生？原作者为什么没有在框架里直接解决问题？我的开发方法符合作者的思路吗？在不断的思考解决问题的过程中，自己的开发手法会逐渐熟练，知道哪些问题是可以避免的，框架在哪些情况不应该使用，更重要的是，你会发现网上能找到的大多数方案都是“愚蠢”的，贸然使用真的会带来更多的问题，从你发现这一情况的时刻开始，你解决问题的手法将发生质的变化，对所见方案的合理怀疑将成为你的本能，鉴别“愚蠢”方案将成为你的直觉，这种对“愚蠢”方案的抗拒将迫使你所用的一切框架和软件都倾尽所能进行深入挖掘，而越是深入，对网上那些方案的甄别能力就越强，更多似是而非的方案将浮出水面，强烈的违和感更加迫使你进行深入学习。这是一个正循环，当越过了那座山峰，接下来的进步自然而然。我自己是什么时候越过那座峰的？可能是在大一和几位志同道合的好友合作课设的时候，可能是在大二接触开源项目的时候，可能是在大三一个课设参加了好几个比赛的时候，也可能是在大四疫情在家一个人孤独地做毕设的时候。当我回过神来的时候，我发现自己hack开源项目越来越顺畅，阅读多人合作的开源代码就像读书一样自然，但写程序时的做法已经和身边的人越来越远，总觉得它们的程序虽然可以运行但无法交流，无法“读书”。困扰至此，反正这个项目也没有人看，随便乱写写。
+
+## TODO
+
+* 或许可以在不影响上层应用的情况下将过滤和回调改成接口类
