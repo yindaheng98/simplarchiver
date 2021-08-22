@@ -1,6 +1,6 @@
 # simplarchiver
 
-一个简单的可扩展聚合异步下载器框架（Python协程小练习）
+一个简单的可扩展异步下载器框架（Python协程小练习）
 
 针对的问题：定时爬虫
 * 我需要使用几种不同的方法获取下载链接
@@ -45,12 +45,12 @@ Feeder──┘        └──Downloader
 
 Item、Feeder、Downloader、Pair具体到代码中是四个类：
 
-| 名词           | 代码中的体现                                                                                        | 使用方法                                                                                                                           |
-| -------------- | --------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| **Item**       | `simplarchiver.Feeder.get_feeds`函数的迭代输出以及`simplarchiver.Downloader.download`函数的输入参数 | 完全由用户自定义，`simplarchiver`只会将其简单的从Feeder搬运到Downloader，不会对其进行操作                                          |
-| **Feeder**     | 一个抽象类`simplarchiver.Feeder`                                                                    | 用户继承此类构造自己的子类，从而自定义产生什么样的Item                                                                             |
-| **Downloader** | 一个抽象类`simplarchiver.Downloader`                                                                | 用户继承此类构造自己的子类，从而自定义对Item执行什么样的下载过程                                                                   |
-| **Pair**       | `simplarchiver.Pair`，其构造函数的包含`simplarchiver.Feeder`和`simplarchiver.Downloader`的列表      | 用户以自己定义的`simplarchiver.Feeder`和`simplarchiver.Downloader`子类列表为输入，调用构造函数构造其实例，调用其类方法执行下载过程 |
+| 名词           | 代码中的体现                                                                                        | 使用方法                                                                                                                             |
+| -------------- | --------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| **Item**       | `simplarchiver.Feeder.get_feeds`函数的迭代输出以及`simplarchiver.Downloader.download`函数的输入参数 | 完全由用户自定义，`simplarchiver`只会将其简单的从Feeder搬运到Downloader，不会对其进行操作                                            |
+| **Feeder**     | 一个抽象类`simplarchiver.Feeder`                                                                    | 用户继承此类构造自己的子类，从而自定义如何获取Item                                                                                   |
+| **Downloader** | 一个抽象类`simplarchiver.Downloader`                                                                | 用户继承此类构造自己的子类，从而自定义如何下载Item                                                                                   |
+| **Pair**       | `simplarchiver.Pair`，其构造函数的包含`simplarchiver.Feeder`和`simplarchiver.Downloader`的列表      | 用户以自己定义的`simplarchiver.Feeder`和`simplarchiver.Downloader`子类列表为输入，调用构造函数构造其实例，调用其协程函数执行下载过程 |
 
 ### Feeder抽象类`simplarchiver.Feeder`
 
@@ -66,7 +66,7 @@ class Feeder(metaclass=abc.ABCMeta):
 
 继承此类，实现`get_feeds`函数，就能自定义产生什么样的Item。
 
-例如，一个只会睡觉的SleepFeeder，睡醒了就返回一个字符串作为Item（位于[simplarchiver/example/sleep.py](./simplarchiver/example/sleep.py)）：
+例如，一个只会睡觉的[`simplarchiver.example.SleepFeeder`](simplarchiver/example/sleep.py)，睡醒了就返回一个字符串作为Item：
 
 ```python
 class SleepFeeder(Feeder):
@@ -102,6 +102,12 @@ class SleepFeeder(Feeder):
 
 ```
 
+更多案例：
+* [`RandomFeeder`](simplarchiver/example/random.py)：不sleep，不知疲倦地返回随机数的Feeder
+* [`RSSHubFeeder`](simplarchiver/example/rss.py)：从RSSHub中爬取Feed Item。获取到的item是RSSHub返回的每个RSS Item中的link标签里的内容和pubDate值，如果有enclosure还会返回enclosure值
+* [`RSSHubMultiPageFeeder`](simplarchiver/example/rss.py)：从多个页面的RSSHub中爬取Feed Item，内容同上
+* [`TTRSSCatFeeder`](simplarchiver/example/rss.py)：通过TTRSS API从TTRSS的Category中爬取Feed。返回指定的Category中的所有订阅链接和最新的内容链接
+
 ### Downloader抽象类`simplarchiver.Downloader`
 
 `simplarchiver.Downloader`是包含一个以Item为输入的协程函数`download`的抽象类。
@@ -116,7 +122,7 @@ class Downloader(metaclass=abc.ABCMeta):
 
 继承此类，实现`download`函数，就能自定义对Item执行什么样的下载过程。
 
-例如，一个只会睡觉的SleepDownloader，收到Item之后先睡一觉然后起床把Item以字符串的方式输出到命令行（位于[simplarchiver/example/sleep.py](./simplarchiver/example/sleep.py)）：
+例如，一个只会睡觉的[`simplarchiver.example.SleepDownloader`](simplarchiver/example/sleep.py)，收到Item之后先睡一觉然后起床把Item以字符串的方式输出到命令行：
 
 ```python
 class SleepDownloader(Downloader):
@@ -147,6 +153,10 @@ class SleepDownloader(Downloader):
         SleepDownloader.running -= 1
         self.log('I wake up, Now there are %d SleepDownloader awaiting' % SleepDownloader.running)
 ```
+
+更多案例：
+* [`JustDownloader`](simplarchiver/example/just.py)：不sleep，不知疲倦地输出收到的Item的Downloader
+* [`SubprocessDownloader`](simplarchiver/example/subprocess.py)：根据Item开子进程执行系统调用的Downloader
 
 ### Pair类`simplarchiver.Pair`
 
@@ -221,7 +231,7 @@ class Pair:
     ...
 ```
 
-例如，使用上面定义的`SleepFeeder`和`SleepDownloader`构造一个包含4个Feeder和4个Downloader、以5秒为间隔运行的、Feeder和Downloader并发数分别为3和4的`simplarchiver.Pair`：
+例如，使用上面定义的`SleepFeeder`和`SleepDownloader`构造一个包含4个Feeder和4个Downloader、以5秒为间隔运行的、Feeder和Downloader并发数分别为3和4的`simplarchiver.Pair`（位于[test_Sleep.py](test_Sleep.py)）：：
 
 ```python
 from simplarchiver import Pair
@@ -235,7 +245,7 @@ for i in range(1, 4):
     pair.add_downloader(SleepDownloader(i))
 ```
 
-要启动运行，只需要使用`asyncio.run`运行`simplarchiver.Pair`的协程即可：
+要启动运行，只需要使用`asyncio.run`运行`simplarchiver.Pair`的协程即可（位于[test_Sleep.py](test_Sleep.py)）：
 
 ```python
 import logging
@@ -251,4 +261,44 @@ log("pair.coroutine_once()")
 asyncio.run(pair.coroutine_once()) # 运行一次
 log("pair.coroutine_forever()")
 asyncio.run(pair.coroutine_forever()) # 永远运行
+```
+
+## 扩展：`simplarchiver.Controller`
+
+进一步的需求：并行运行多个`simplarchiver.Pair`
+* 在好几个项目里面都用到了这个框架，现在有一堆`simplarchiver.Pair`需要运行
+* 不想给每个`simplarchiver.Pair`都弄一个进程，想把它们放在一个事件循环里运行，节约资源
+
+实现：so easy，用`asyncio.gather`运行多个`simplarchiver.Pair.coroutine_forever()`就好了，这个过程封装为[`simplarchiver.Controller`](simplarchiver/controller.py)：
+
+```python
+from .pair import *
+from typing import List
+
+
+class Controller:
+    def __init__(self, pairs: List[Pair] = []):
+        """
+        feeder-downloader对列表，键为id值为Pair
+        每个Pair都是独立运行的
+        """
+        self.__pairs = []
+        self.add_pairs(pairs)
+
+    async def coroutine(self):
+        await asyncio.gather(*[pair.coroutine_forever() for pair in self.__pairs])
+```
+
+并发运行Pair轻而易举：
+```python
+from simplarchiver import Controller, Pair
+from simplarchiver.example import RandomFeeder, JustDownloader
+
+controller = Controller()
+for i in range(1, 4):
+    controller.add_pair(
+        Pair([RandomFeeder('(%d,%d)' % (i, j)) for j in range(1, 4)],
+             [JustDownloader('(%d,%d)' % (i, j)) for j in range(1, 4)],
+             timedelta(seconds=i * 5), i, i))
+asyncio.run(controller.coroutine())
 ```
