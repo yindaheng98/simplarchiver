@@ -53,7 +53,6 @@ class RandomFilterFeeder(FilterFeeder):
 
 class RandomFilterDownloader(FilterDownloader):
     """一个随机过滤item的Downloader"""
-    """一个随机过滤item的Feeder"""
 
     def __init__(self, base_downloader: Downloader,
                  logger: logging.Logger = logging.getLogger("RandomFilterDownloader")):

@@ -103,10 +103,10 @@ class SleepFeeder(Feeder):
 ```
 
 更多案例：
-* [`RandomFeeder`](simplarchiver/example/random.py)：不sleep，不知疲倦地返回随机数的Feeder
-* [`RSSHubFeeder`](simplarchiver/example/rss.py)：从RSSHub中爬取Feed Item。获取到的item是RSSHub返回的每个RSS Item中的link标签里的内容和pubDate值，如果有enclosure还会返回enclosure值
-* [`RSSHubMultiPageFeeder`](simplarchiver/example/rss.py)：从多个页面的RSSHub中爬取Feed Item，内容同上
-* [`TTRSSCatFeeder`](simplarchiver/example/rss.py)：通过TTRSS API从TTRSS的Category中爬取Feed。返回指定的Category中的所有订阅链接和最新的内容链接
+* [`simplarchiver.example.RandomFeeder`](simplarchiver/example/random.py)：不sleep，不知疲倦地返回随机数的Feeder
+* [`simplarchiver.example.RSSHubFeeder`](simplarchiver/example/rss.py)：从RSSHub中爬取Feed Item。获取到的item是RSSHub返回的每个RSS Item中的link标签里的内容和pubDate值，如果有enclosure还会返回enclosure值
+* [`simplarchiver.example.RSSHubMultiPageFeeder`](simplarchiver/example/rss.py)：从多个页面的RSSHub中爬取Feed Item，内容同上
+* [`simplarchiver.example.TTRSSCatFeeder`](simplarchiver/example/rss.py)：通过TTRSS API从TTRSS的Category中爬取Feed。返回指定的Category中的所有订阅链接和最新的内容链接
 
 ### Downloader抽象类`simplarchiver.Downloader`
 
@@ -155,8 +155,8 @@ class SleepDownloader(Downloader):
 ```
 
 更多案例：
-* [`JustDownloader`](simplarchiver/example/just.py)：不sleep，不知疲倦地输出收到的Item的Downloader
-* [`SubprocessDownloader`](simplarchiver/example/subprocess.py)：根据Item开子进程执行系统调用的Downloader
+* [`simplarchiver.example.JustDownloader`](simplarchiver/example/just.py)：不sleep，不知疲倦地输出收到的Item的Downloader
+* [`simplarchiver.example.SubprocessDownloader`](simplarchiver/example/subprocess.py)：根据Item开子进程执行系统调用的Downloader
 
 ### Pair类`simplarchiver.Pair`
 
@@ -310,7 +310,7 @@ asyncio.run(controller.coroutine())
 * 有些Item的处理我想放在Feeder输出之后，让修改和筛选传给到所有的Downloader
 * 有些Item的处理我想放在Downloader输入之前，让修改和筛选只传给一个Downloader
 
-### 实现Feeder的Item后处理：过滤器[`simplarchiver.FilterFeeder`](simplarchiver/abc.py)
+### 实现Feeder的Item后处理：Feed过滤器[`simplarchiver.FilterFeeder`](simplarchiver/abc.py)
 
 * 一个带有过滤函数`filter`的抽象类
 * 继承自`simplarchiver.Feeder`
@@ -341,7 +341,7 @@ class FilterFeeder(Feeder):
                 yield item
 ```
 
-于是，用户可以继承此类，定义自己的过滤方案，然后在构造时将需要过滤的Feeder封装进去即可。例如，一个随机删除一半Item的过滤器[`simplarchiver.example.FilterFeeder`](simplarchiver/example/random.py)：
+于是，用户可以继承此类，定义自己的过滤方案，然后在构造时将需要过滤的Feeder封装进去即可。例如，一个随机删除一半Item的Feed过滤器[`simplarchiver.example.RandomFilterFeeder`](simplarchiver/example/random.py)：
 
 ```python
 class RandomFilterFeeder(FilterFeeder):
@@ -369,7 +369,7 @@ pair = Pair([
 ], [SleepDownloader(0)], timedelta(seconds=5), 4, 4)
 ```
 
-因为过滤器也是继承自`simplarchiver.Feeder`，所以它天生就是可以嵌套的。例如我要随机删除四分之三的Item，那就嵌套一下：
+因为Feed过滤器也是继承自`simplarchiver.Feeder`，所以它天生就是可以嵌套的。例如我要随机删除某个Feeder四分之三的输出Item，那就嵌套一下：
 ```python
 pair = Pair([
     RandomFilterFeeder(
@@ -380,4 +380,75 @@ pair = Pair([
 ], [SleepDownloader(0)], timedelta(seconds=5), 4, 4)
 ```
 
-### 实现Downloader的Item预处理：过滤器[`simplarchiver.FilterDownloader`](simplarchiver/abc.py)
+更多案例：
+* [`simplarchiver.example.TTRSSHubLinkFeeder`](simplarchiver/example/rss.py)：用于封装`simplarchiver.example.TTRSSCatFeeder`，`TTRSSCatFeeder`返回的`item['link']`字段是RSS订阅链接，`TTRSSHubLinkFeeder.filter`将根据此RSS订阅链接获取原网页地址替换到`item['link']`中。
+
+### 实现Downloader的Item预处理：Download过滤器[`simplarchiver.FilterDownloader`](simplarchiver/abc.py)
+
+和[`simplarchiver.FilterFeeder`](simplarchiver/abc.py)类似，只不过`filter`函数在`download`之前调用：
+
+```python
+class FilterDownloader(Downloader):
+    """带过滤功能的Downloader"""
+
+    def __init__(self, base_downloader: Downloader):
+        """从一个基本的Downloader生成带过滤的Downloader"""
+        self.__base_downloader = base_downloader
+
+    @abc.abstractmethod
+    async def filter(self, item):
+        """
+        如果过滤器返回了None，则会被过滤掉，不会被Download
+        过滤器内可以修改item
+        """
+        return item
+
+    async def download(self, item):
+        """带过滤的Downloader的Download过程"""
+        item = await self.filter(item)
+        if item is not None:  # 如果过滤器返回了None，则会被过滤掉，不会被Download
+            return await self.__base_downloader.download(item)
+```
+
+于是，用户可以继承此类，定义自己的过滤方案，然后在构造时将需要过滤的Downloader封装进去即可。例如，一个随机删除一半Item的Download过滤器[`simplarchiver.example.RandomFilterDownloader`](simplarchiver/example/random.py)：
+
+```python
+class RandomFilterDownloader(FilterDownloader):
+    """一个随机过滤item的Downloader"""
+
+    def __init__(self, base_downloader: Downloader,
+                 logger: logging.Logger = logging.getLogger("RandomFilterDownloader")):
+        super().__init__(base_downloader)
+        self.__logger = logger
+
+    async def filter(self, item):
+        r = random.random()
+        self.__logger.info(
+            "RandomFilterDownloader rand a number %f and item %s, " % (r, item) + (
+                "keep the item" if r > 0.5 else "drop the item"))
+        return item if r > 0.5 else None
+```
+
+在构造时将要过滤的Downloader封装进去即可：
+```python
+pair = Pair([SleepFeeder(0)], [
+    RandomFilterDownloader(
+        SleepDownloader(0)
+    )
+], timedelta(seconds=5), 4, 4)
+```
+
+同样，Download过滤器也是可以嵌套的。和上面的Feed过滤器的嵌套案例一样，我要让某个Downloader随机跳过四分之三的输入Item，那就嵌套一下：
+```python
+pair = Pair([SleepFeeder(0)], [
+    RandomFilterDownloader(
+        RandomFilterDownloader(
+            SleepDownloader(0)
+        )
+    )
+], timedelta(seconds=5), 4, 4)
+```
+
+更多案例：
+* [`simplarchiver.example.EnclosureOnlyDownloader`](simplarchiver/example/rss.py)：筛选出包含`enclosure`字段的Item
+* [`simplarchiver.example.EnclosureExceptDownloader`](simplarchiver/example/rss.py)：筛选出不包含`enclosure`字段的Item
