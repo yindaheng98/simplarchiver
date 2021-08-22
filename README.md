@@ -269,7 +269,7 @@ asyncio.run(pair.coroutine_forever()) # 永远运行
 * 在好几个项目里面都用到了这个框架，现在有一堆`simplarchiver.Pair`需要运行
 * 不想给每个`simplarchiver.Pair`都弄一个进程，想把它们放在一个事件循环里运行，节约资源
 
-实现：so easy，用`asyncio.gather`运行多个`simplarchiver.Pair.coroutine_forever()`就好了，这个过程封装为[`simplarchiver.Controller`](simplarchiver/controller.py)：
+实现：用`asyncio.gather`运行多个`simplarchiver.Pair.coroutine_forever()`就好了，这个过程封装为[`simplarchiver.Controller`](simplarchiver/controller.py)：
 
 ```python
 from .pair import *
@@ -302,3 +302,82 @@ for i in range(1, 4):
              timedelta(seconds=i * 5), i, i))
 asyncio.run(controller.coroutine())
 ```
+
+## 扩展：Feeder的Item后处理和Downloader的Item预处理
+
+进一步的需求：
+* 有些Item，我想处理或筛选一下再传给Downloader去下载
+* 有些Item的处理我想放在Feeder输出之后，让修改和筛选传给到所有的Downloader
+* 有些Item的处理我想放在Downloader输入之前，让修改和筛选只传给一个Downloader
+
+### 实现Feeder的Item后处理：过滤器[`simplarchiver.FilterFeeder`](simplarchiver/abc.py)
+
+* 一个带有过滤函数`filter`的抽象类
+* 继承自`simplarchiver.Feeder`
+* 内部存储一个`simplarchiver.Feeder`作为基础Feeder
+* 在其`get_feeds`中先调用基础Feeder的`get_feeds`，再调用`filter`过滤之
+
+```python
+class FilterFeeder(Feeder):
+    """带过滤功能的Feeder"""
+
+    def __init__(self, base_feeder: Feeder):
+        """从一个基本的Feeder生成带过滤的Feeder"""
+        self.__base_feeder = base_feeder
+
+    @abc.abstractmethod
+    async def filter(self, item):
+        """
+        如果过滤器返回了None，则会被过滤掉，不会被yield
+        过滤器内可以修改item
+        """
+        return item
+
+    async def get_feeds(self):
+        """带过滤的Feeder的Feed过程"""
+        async for item in self.__base_feeder.get_feeds():
+            item = await self.filter(item)
+            if item is not None:  # 如果过滤器返回了None，则会被过滤掉，不会被yield
+                yield item
+```
+
+于是，用户可以继承此类，定义自己的过滤方案，然后在构造时将需要过滤的Feeder封装进去即可。例如，一个随机删除一半Item的过滤器[`simplarchiver.example.FilterFeeder`](simplarchiver/example/random.py)：
+
+```python
+class RandomFilterFeeder(FilterFeeder):
+    """一个随机过滤item的Feeder"""
+
+    def __init__(self, base_feeder: Feeder,
+                 logger: logging.Logger = logging.getLogger("RandomFilterFeeder")):
+        super().__init__(base_feeder)
+        self.__logger = logger
+
+    async def filter(self, item):
+        r = random.random()
+        self.__logger.info(
+            "RandomFilterFeeder rand  a number %f and item %s, " % (r, item) + (
+                "keep the item" if r > 0.5 else "drop the item"))
+        return item if r > 0.5 else None
+```
+
+在构造时将要过滤的Feeder封装进去即可：
+```python
+pair = Pair([
+    RandomFilterFeeder(
+        SleepFeeder(0)
+    )
+], [SleepDownloader(0)], timedelta(seconds=5), 4, 4)
+```
+
+因为过滤器也是继承自`simplarchiver.Feeder`，所以它天生就是可以嵌套的。例如我要随机删除四分之三的Item，那就嵌套一下：
+```python
+pair = Pair([
+    RandomFilterFeeder(
+        RandomFilterFeeder(
+            SleepFeeder(0)
+        )
+    )
+], [SleepDownloader(0)], timedelta(seconds=5), 4, 4)
+```
+
+### 实现Downloader的Item预处理：过滤器[`simplarchiver.FilterDownloader`](simplarchiver/abc.py)
