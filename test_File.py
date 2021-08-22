@@ -3,16 +3,21 @@ import logging
 from datetime import timedelta
 
 from simplarchiver import Pair
-from simplarchiver.example import FileFeeder, DirFeeder, WalkFeeder, JustDownloader
+from simplarchiver.example import FileFeeder, DirFeeder, WalkFeeder, ExtFilterFeeder, JustDownloader
 
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-
+logging.basicConfig(level=logging.DEBUG,
+                    format='%(levelname)-8s | %(name)-24s | %(message)s')
 
 def log(msg):
     logging.info('test_Pair | %s' % msg)
 
 
-ttrss_feeders = [FileFeeder('.'), DirFeeder('.'), WalkFeeder('.')]
+ttrss_feeders = [
+    FileFeeder('./simplarchiver'),
+    DirFeeder('./simplarchiver'),
+    WalkFeeder('./simplarchiver'),
+    ExtFilterFeeder(FileFeeder('./simplarchiver'), '.py')
+]
 
 just_downloaders = [JustDownloader(i) for i in range(1, 4)]
 

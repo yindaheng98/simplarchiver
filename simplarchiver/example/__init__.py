@@ -5,4 +5,4 @@ from .rss import RSSHubFeeder, RSSHubMultiPageFeeder, TTRSSCatFeeder, TTRSSHubLi
 from .rss import EnclosureOnlyDownloader, EnclosureExceptDownloader
 from .subprocess import SubprocessDownloader
 from .update import UpdateDownloader
-from .file import FileFeeder, DirFeeder, WalkFeeder
+from .file import FileFeeder, DirFeeder, WalkFeeder, ExtFilterFeeder
