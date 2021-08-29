@@ -8,7 +8,7 @@ with open("README.md", "r", encoding='utf8') as fh:
 
 setup(
     name='simplarchiver',
-    version='1.2.4',
+    version='1.2.4.1',
     author='yindaheng98',
     author_email='yindaheng98@163.com',
     url='https://github.com/yindaheng98/simplarchiver',
@@ -17,7 +17,10 @@ setup(
     long_description_content_type="text/markdown",
     package_dir={
         'simplarchiver': 'simplarchiver',
-        'simplarchiver.example': 'simplarchiver/example'
+        'simplarchiver.example': 'simplarchiver/example',
+        'simplarchiver.example.file': 'simplarchiver/example/file',
+        'simplarchiver.example.qbittorrent': 'simplarchiver/example/qbittorrent',
+        'simplarchiver.example.rss': 'simplarchiver/example/rss'
     },
     packages=['simplarchiver', 'simplarchiver.example'],
     classifiers=[
