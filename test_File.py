@@ -4,8 +4,9 @@ import logging
 from datetime import timedelta
 
 from simplarchiver import Pair, FilterDownloader
-from simplarchiver.example import FileFeeder, DirFeeder, WalkFeeder, ExtFilterFeeder, JustDownloader
-from simplarchiver.example import QBittorrentDownloader
+from simplarchiver.example import JustDownloader
+from simplarchiver.example.file import FileFeeder, DirFeeder, WalkFeeder, ExtFilterFeeder
+from simplarchiver.example.qbittorrent import QBittorrentDownloader
 from test_secret import qb_data
 
 logging.basicConfig(level=logging.DEBUG,

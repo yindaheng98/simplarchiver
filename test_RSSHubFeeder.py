@@ -5,9 +5,10 @@ from datetime import timedelta
 import httpx
 
 from simplarchiver import Pair
-from simplarchiver.example import RSSHubFeeder, RSSHubMultiPageFeeder, TTRSSCatFeeder, TTRSSHubLinkFeeder
-from simplarchiver.example import JustDownloader, SubprocessDownloader, JustLogCallbackDownloader, UpdateDownloader
-from simplarchiver.example import EnclosureOnlyDownloader, EnclosureExceptDownloader
+from simplarchiver.example.rss import RSSHubFeeder, RSSHubMultiPageFeeder, TTRSSCatFeeder, TTRSSHubLinkFeeder
+from simplarchiver.example import JustDownloader, SubprocessDownloader, JustLogCallbackDownloader
+from simplarchiver.example.file import UpdateDownloader
+from simplarchiver.example.rss import EnclosureOnlyDownloader, EnclosureExceptDownloader
 from test_secret import ttrss_data, rsshub_data, rsshub_multipage_data
 
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
