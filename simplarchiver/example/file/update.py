@@ -17,8 +17,11 @@ class UpdateList:
 
     async def __check(self):
         self.__logger.debug("Check if the update list file exists at %s" % self.__path)
-        if not os.path.exists(self.__path):  # 先检查一下文件是否存在
-            self.__logger.warning("Update list file not exists at %s" % self.__path)
+        try:
+            async with aiofiles.open(self.__path, 'r', encoding='utf8') as f:
+                json.loads(await f.read())  # 先检查一下文件是否可以读取
+        except Exception as e:
+            self.__logger.error("Update list file has error %s" % e)
             async with aiofiles.open(self.__path, 'w', encoding='utf8') as f:
                 await f.write(json.dumps({}))  # 不存在的话就先写个空列表进去
                 self.__logger.warning("A new empty update list file generated to %s" % self.__path)
