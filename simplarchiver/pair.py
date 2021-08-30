@@ -2,6 +2,7 @@ from .abc import *
 from typing import List
 from datetime import timedelta
 import asyncio
+import logging
 
 
 class DownloadController:
@@ -134,7 +135,8 @@ class Pair:
         task = asyncio.create_task(self.coroutine_once())
         try:
             await task
-        except Exception:
+        except Exception as e:
+            logging.error(e)
             return
 
     async def coroutine_forever(self):
