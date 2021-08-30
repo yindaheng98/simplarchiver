@@ -136,7 +136,7 @@ class Pair:
         try:
             await task
         except Exception as e:
-            logging.error(e)
+            logging.exception(e)
             return
 
     async def coroutine_forever(self):
