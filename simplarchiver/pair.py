@@ -132,12 +132,13 @@ class Pair:
             await dc.join()
 
     async def __coroutine_once_no_raise(self):
-        task = asyncio.create_task(self.coroutine_once())
-        try:
-            await task
-        except Exception as e:
-            logging.exception(e)
-            return
+        while True:
+            task = asyncio.create_task(self.coroutine_once())
+            try:
+                await task
+                return
+            except Exception as e:
+                logging.exception(e)
 
     async def coroutine_forever(self):
         await self.__coroutine_once_no_raise()
