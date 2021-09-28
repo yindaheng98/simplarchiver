@@ -133,12 +133,12 @@ class Pair:
 
     async def __coroutine_once_no_raise(self):
         while True:
-            task = asyncio.create_task(self.coroutine_once())
             try:
-                await task
+                await asyncio.create_task(self.coroutine_once())
                 return
             except Exception as e:
                 logging.exception(e)
+                await asyncio.sleep(3) # 出错了先停它三秒钟，免得卡住别的任务
 
     async def coroutine_forever(self):
         await self.__coroutine_once_no_raise()
