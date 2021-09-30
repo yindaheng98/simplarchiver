@@ -34,7 +34,11 @@ class DownloadController:
                 self.__queue.task_done()
                 break  # 用None表示feed结束
             async with sem:
-                await self.__downloader.download(item)
+                try:
+                    await self.__downloader.download(item)
+                except Exception as e:
+                    logging.exception('Catch an Exception from your Downloader:')
+                    logging.exception(e)
                 self.__queue.task_done()  # task_done配合join可以判断任务是否全部完成
 
 
@@ -46,14 +50,18 @@ class FeedController:
 
     async def __get_feeds(self, sem: asyncio.Semaphore):
         """以固定并发数进行self.__feeder.get_feeds()"""
-        it = self.__feeder.get_feeds()
         try:
+            it = self.__feeder.get_feeds()
             while True:
                 async with sem:  # 不直接用async for就是为了这个在next前面调用的信号量
                     feed = await it.__anext__()
                     yield feed
         except StopAsyncIteration:
             pass
+        except Exception as e: # 如果出错其他错直接退出
+            logging.exception('Catch an Exception from your Feeder:')
+            logging.exception(e)
+            return
 
     async def coroutine(self, sem: asyncio.Semaphore, download_controllers: List[DownloadController]):
         """独立运行的Feed任务"""
@@ -137,6 +145,7 @@ class Pair:
                 await asyncio.create_task(self.coroutine_once())
                 return
             except Exception as e:
+                logging.exception('Catch an Exception from your Feeder or Downloader:')
                 logging.exception(e)
                 await asyncio.sleep(3) # 出错了先停它三秒钟，免得卡住别的任务
 
