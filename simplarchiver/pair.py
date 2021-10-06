@@ -8,18 +8,29 @@ import logging
 class DownloadController:
     """Download控制器"""
 
+    __ID: int = 0
+
     def __init__(self, downloader: Downloader, buffer_size=100):
         self.__downloader: Downloader = downloader
         self.__buffer_size = buffer_size
         self.__queue: asyncio.Queue = None
+        self.__id: int = DownloadController.__ID
+        DownloadController.__ID += 1
+
+    def __log(self, msg):
+        logging.debug('DownloadController %d | %s' % (self.__id, msg))
 
     async def put(self, item):
         """将待下载的feed item入队列"""
+        self.__log(' start put item: %s' % item)
         await self.__queue.put(item)
+        self.__log('finish put item: %s' % item)
 
     async def join(self):
         """等待队列中的所有任务完成"""
+        self.__log(' start join coroutine')
         await self.__queue.join()
+        self.__log('finish join coroutine')
 
     async def coroutine(self, sem: asyncio.Semaphore):
         """独立运行的Download任务"""
@@ -28,25 +39,38 @@ class DownloadController:
         # asyncio相关数据结构必须在asyncio.run之后生成，否则会出现错误：
         # got Future <Future pending> attached to a different loop
         # 这是由于asyncio.run会生成新的事件循环，不同事件循环中的事件不能互相调用
+        self.__log('coroutine | start')
         while True:
+            self.__log('coroutine | wait for an item')
             item = await self.__queue.get()
+            self.__log('coroutine | get an item            : %s' % item)
             if item is None:
                 self.__queue.task_done()
                 break  # 用None表示feed结束
             async with sem:
+                self.__log('coroutine | start download item    : %s' % item)
                 try:
                     await self.__downloader.download(item)
                 except Exception as e:
                     logging.exception('Catch an Exception from your Downloader:')
                     logging.exception(e)
+                self.__log('coroutine | finish download item   : %s' % item)
                 self.__queue.task_done()  # task_done配合join可以判断任务是否全部完成
+        self.__log('coroutine | end')
 
 
 class FeedController:
     """Feed控制器"""
 
+    __ID: int = 0
+
     def __init__(self, feeder: Feeder):
         self.__feeder: Feeder = feeder
+        self.__id: int = FeedController.__ID
+        FeedController.__ID += 1
+
+    def __log(self, msg):
+        logging.debug('    FeedController %d | %s' % (self.__id, msg))
 
     async def __get_feeds(self, sem: asyncio.Semaphore):
         """以固定并发数进行self.__feeder.get_feeds()"""
@@ -58,18 +82,23 @@ class FeedController:
                     yield feed
         except StopAsyncIteration:
             pass
-        except Exception as e: # 如果出错其他错直接退出
+        except Exception:  # 如果出错其他错直接退出
             logging.exception('Catch an Exception from your Feeder:')
-            logging.exception(e)
             return
 
     async def coroutine(self, sem: asyncio.Semaphore, download_controllers: List[DownloadController]):
         """独立运行的Feed任务"""
+        self.__log('coroutine | start')
         async for item in self.__get_feeds(sem):  # 以固定并发数获取待下载项目
+            self.__log('coroutine | get an item: %s' % item)
             if item is None:
                 continue  # None 是退出记号，要从正常的item里面过滤掉
             for dc in download_controllers:  # 每个下载器都要接收到待下载项目
+                self.__log('coroutine | start put item into queue : %s' % item)
                 await dc.put(item)
+                self.__log('coroutine | finish put item into queue: %s' % item)
+            self.__log('coroutine | wait for next item')
+        self.__log('coroutine | end')
 
 
 class Pair:
@@ -144,10 +173,9 @@ class Pair:
             try:
                 await asyncio.create_task(self.coroutine_once())
                 return
-            except Exception as e:
-                logging.exception('Catch an Exception from your Feeder or Downloader:')
-                logging.exception(e)
-                await asyncio.sleep(3) # 出错了先停它三秒钟，免得卡住别的任务
+            except Exception:
+                logging.exception('Catch an Exception from Pair:')
+                await asyncio.sleep(3)  # 出错了先停它三秒钟，免得卡住别的任务
 
     async def coroutine_forever(self):
         await self.__coroutine_once_no_raise()
