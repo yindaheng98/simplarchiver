@@ -99,6 +99,8 @@ class FeedController:
 class Pair:
     """feeder-downloader对"""
 
+    __ID: int = 0
+
     def __init__(self,
                  feeders: List[Feeder] = [],
                  downloaders: List[Downloader] = [],
@@ -119,6 +121,10 @@ class Pair:
 
         # 每个下载器都需要一个队列
         self.__queues: List[asyncio.Queue] = []
+
+        self.__id: int = Pair.__ID
+        self.__logger = logging.getLogger("Pair %d" % self.__id)
+        Pair.__ID += 1
 
     def add_feeder(self, feeder: Feeder):
         self.__fcs.append(FeedController(feeder))
@@ -141,6 +147,9 @@ class Pair:
     def set_downloader_concurrency(self, n: int):
         self.__dc_concurrency = n
 
+    def __log_coroutine_once(self, msg):
+        self.__logger.debug("coroutine_once | %s" % msg)
+
     async def coroutine_once(self):
         """运行一次Feed&Download任务"""
 
@@ -151,28 +160,42 @@ class Pair:
         # got Future <Future pending> attached to a different loop
         # 这是由于asyncio.run会生成新的事件循环，不同事件循环中的事件不能互相调用
 
+        self.__log_coroutine_once('feeder     tasks | start  creating')
         # Download任务开始之后是一直在运行的，等到Feed任务给他发停止信息才会停
         for dc in self.__dcs:
             asyncio.create_task(dc.coroutine(dc_sem))
+        self.__log_coroutine_once('feeder     tasks | finish creating')
 
+        self.__log_coroutine_once('feeder     tasks | start')
         # 聚合独立运行的Feed任务
         await asyncio.gather(*[fc.coroutine(fc_sem, self.__dcs) for fc in self.__fcs])
+        self.__log_coroutine_once('feeder     tasks | end')
+
+        self.__log_coroutine_once('downloader tasks | start  sending stop signal')
         # Feed全部结束后向Download任务发送停止信号
         for dc in self.__dcs:
             await dc.put(None)  # 用None表示feed结束
+        self.__log_coroutine_once('downloader tasks | finish sending stop signal')
+
+        self.__log_coroutine_once('downloader tasks | start  join')
         for dc in self.__dcs:  # 等待下载器的所有下载项目完成后才退出
             await dc.join()
+        self.__log_coroutine_once('downloader tasks | finish join')
 
     async def __coroutine_once_no_raise(self):
+        self.__log_coroutine_once('start')
         while True:
             try:
                 await asyncio.create_task(self.coroutine_once())
+                self.__log_coroutine_once('end')
                 return
             except Exception:
                 logging.exception('Catch an Exception from Pair:')
-                await asyncio.sleep(3)  # 出错了先停它三秒钟，免得卡住别的任务
+                self.__log_coroutine_once('retry')
 
     async def coroutine_forever(self):
         await self.__coroutine_once_no_raise()
+        self.__logger.debug('sleep for %ss before next coroutine_once' % self.__timedelta.total_seconds())
         while await asyncio.sleep(self.__timedelta.total_seconds(), result=True):
             await self.__coroutine_once_no_raise()
+            self.__logger.debug('sleep for %ss before next coroutine_once' % self.__timedelta.total_seconds())
