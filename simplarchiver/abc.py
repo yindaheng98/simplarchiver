@@ -1,5 +1,6 @@
 import abc
 import logging
+from typing import Callable, Any
 
 
 class Feeder(metaclass=abc.ABCMeta):
@@ -55,6 +56,38 @@ class FilterFeeder(Feeder):
                 yield item
             else:
                 self.__logger.debug("filter | item is None, skip")
+
+
+class AmplifierFeeder(Feeder):
+    """基于一个Feeder生成的item生成多个Feeder进而生成多个item"""
+
+    __ID: int = 0
+
+    def __init__(self, base_feeder: Feeder, ampl_feeder_gen: Callable[[Any], Feeder]):
+        """从一个基本的Feeder和一个放大器Feeder生成器生成带过滤的Feeder"""
+        self.__base_feeder = base_feeder
+        self.__ampl_feeder_gen = ampl_feeder_gen
+        self.__id: int = AmplifierFeeder.__ID
+        self.__logger = logging.getLogger("AmplifierFeeder %d" % self.__id)
+        AmplifierFeeder.__ID += 1
+
+    async def get_feeds(self):
+        async for item in self.__base_feeder.get_feeds():  # 获取基本Feeder里的item
+            try:
+                self.__logger.debug("amplifying item: %s" % item)
+                sub_feeder = self.__ampl_feeder_gen(item)  # 生成放大器Feeder
+                self.__logger.debug(" item amplified: %s" % item)
+            except Exception:
+                self.__logger.exception("Catch an Exception from your Amplifier Generator, skip it: %s" % item)
+                sub_feeder = None
+            if sub_feeder is not None:
+                try:
+                    async for sub_item in sub_feeder.get_feeds():  # 获取放大器Feeder里的item
+                        yield sub_item
+                except Exception:
+                    self.__logger.exception("Catch an Exception from your Amplifier Feeder, skip it: %s" % item)
+            else:
+                self.__logger.debug("Amplifier Feeder is None, skip")
 
 
 class FilterDownloader(Downloader):

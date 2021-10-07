@@ -453,6 +453,37 @@ pair = Pair([SleepFeeder(0)], [
 * [`simplarchiver.example.EnclosureOnlyDownloader`](simplarchiver/example/rss.py)：筛选出包含`enclosure`字段的Item
 * [`simplarchiver.example.EnclosureExceptDownloader`](simplarchiver/example/rss.py)：筛选出不包含`enclosure`字段的Item
 
+## 扩展：放大
+
+首先明确“放大”的概念：
+* 有些Feeder输出的item可用作为其他Feeder生成时的输入
+* 一个item放进另一个Feeder里会得到多个item
+* 对于一个Feeder输出的每个item，都可以放进另一个Feeder里生成多个item
+* 于是，item变多了，就叫做“放大”
+
+以RSS订阅为例，要获取所有的订阅详情，需要使用[`simplarchiver.example.TTRSSCatFeeder`](simplarchiver/example/rss.py)从TTRSS上获取所有RSS订阅的链接，再使用[`simplarchiver.example.RSSHubFeeder`](simplarchiver/example/rss.py)访问这些RSS订阅链接，从中读取所有的RSS item。
+
+TTRSS上的订阅链接是`simplarchiver.example.TTRSSCatFeeder`的输出，也是`simplarchiver.example.RSSHubFeeder`的输入；`simplarchiver.example.RSSHubFeeder`对于每个订阅链接都生成多个订阅项。
+
+基于这个需求，可以构造如下的Feeder放大器类：
+```python
+class AmplifierFeeder(Feeder):
+    """基于一个Feeder生成的item生成多个Feeder进而生成多个item"""
+
+    def __init__(self, base_feeder: Feeder, ampl_feeder_gen: Callable[[Any], Feeder]):
+        """从一个基本的Feeder和一个放大器Feeder生成器生成带过滤的Feeder"""
+        self.__base_feeder = base_feeder
+        self.__ampl_feeder_gen = ampl_feeder_gen
+
+    async def get_feeds(self):
+        async for item in self.__base_feeder.get_feeds():  # 获取基本Feeder里的item
+            sub_feeder = self.__ampl_feeder_gen(item)  # 生成放大器Feeder
+            if sub_feeder is not None:
+                async for sub_item in sub_feeder.get_feeds():  # 获取放大器Feeder里的item
+                    yield sub_item
+```
+很简单，就是输入一个基本Feeder和一个放大器Feeder生成函数，对基本Feeder输出的每个item都调用放大器Feeder生成函数生成放大器Feeder，再从放大器Feeder里读item。
+
 ## 扩展：Download回调
 
 进一步的需求：
