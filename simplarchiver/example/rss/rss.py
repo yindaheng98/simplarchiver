@@ -115,11 +115,13 @@ class TTRSSClient(httpx.AsyncClient):
         await super().__aenter__()
         self.__logger.debug('httpx cli for TTRSS API %s initialized' % self.__url)
         try:
-            self.__sid = (await super().post(self.__url, content=json.dumps({
+            data = (await super().post(self.__url, content=json.dumps({
                 'op': 'login',
                 'user': self.__username,
                 'password': self.__password
-            }))).json()['content']['session_id']
+            }))).json()
+            self.__logger.info('TTRSS API login response: %s' % data)
+            self.__sid = data['content']['session_id']
             self.__logger.info('TTRSS API login successful, sid: %s' % self.__sid)
         except Exception:
             self.__logger.exception('TTRSS API login failed, error: ')
@@ -127,10 +129,11 @@ class TTRSSClient(httpx.AsyncClient):
 
     async def __aexit__(self, *args, **kwargs):
         try:
-            (await super().post(self.__url, content=json.dumps({
+            data = (await super().post(self.__url, content=json.dumps({
                 "sid": self.__sid,
                 "op": "logout"
             }))).json()
+            self.__logger.info('TTRSS API logout response: %s' % data)
             self.__logger.info('TTRSS API logout successful, sid: %s' % self.__sid)
         except Exception:
             self.__logger.exception('TTRSS API logout failed, error: ')
