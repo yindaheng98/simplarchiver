@@ -114,28 +114,38 @@ class TTRSSClient(httpx.AsyncClient):
         self.__logger.debug('semaphore for TTRSS API %s got' % self.__url)
         await super().__aenter__()
         self.__logger.debug('httpx cli for TTRSS API %s initialized' % self.__url)
-        self.__sid = (await super().post(self.__url, content=json.dumps({
-            'op': 'login',
-            'user': self.__username,
-            'password': self.__password
-        }))).json()['content']['session_id']
-        self.__logger.info('TTRSS API login successful, sid: %s' % self.__sid)
+        try:
+            self.__sid = (await super().post(self.__url, content=json.dumps({
+                'op': 'login',
+                'user': self.__username,
+                'password': self.__password
+            }))).json()['content']['session_id']
+            self.__logger.info('TTRSS API login successful, sid: %s' % self.__sid)
+        except Exception:
+            self.__logger.exception('TTRSS API login failed, error: ')
         return self
 
     async def __aexit__(self, *args, **kwargs):
-        (await super().post(self.__url, content=json.dumps({
-            "sid": self.__sid,
-            "op": "logout"
-        }))).json()
+        try:
+            (await super().post(self.__url, content=json.dumps({
+                "sid": self.__sid,
+                "op": "logout"
+            }))).json()
+            self.__logger.info('TTRSS API logout successful, sid: %s' % self.__sid)
+        except Exception:
+            self.__logger.exception('TTRSS API logout failed, error: ')
         await super().__aexit__(*args, **kwargs)
-        self.__logger.info('TTRSS API logout successful, sid: %s' % self.__sid)
         await TTRSSClient.sem_list[self.__url].__aexit__(*args, **kwargs)
         self.__logger.debug('semaphore for TTRSS API %s released' % self.__url)
 
     async def api(self, data: dict):
         data['sid'] = self.__sid
         self.__logger.debug("post data to  TTRSS API %s: %s" % (self.__url, data))
-        return (await super().post(self.__url, content=json.dumps(data))).json()['content']
+        try:
+            return (await super().post(self.__url, content=json.dumps(data))).json()['content']
+        except Exception:
+            self.__logger.exception('TTRSS API post failed, error: ')
+            return None
 
 
 class TTRSSCatFeeder(Feeder):
