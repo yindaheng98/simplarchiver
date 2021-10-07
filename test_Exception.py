@@ -4,7 +4,7 @@ from datetime import timedelta
 import logging
 import asyncio
 
-logging.basicConfig(level=logging.DEBUG, format=' %(asctime)s | %(levelname)-8s | %(name)-24s | %(message)s')
+logging.basicConfig(level=logging.DEBUG, format=' %(asctime)s | %(levelname)-8s | %(name)-26s | %(message)s')
 
 
 def log(msg):
@@ -16,7 +16,13 @@ def TestSleepFeeder(i):
 
 
 def TestSleepDownloader(i):
-    return ExceptionDownloaderFilter(SleepDownloader(i), rate=0.2)
+    return ExceptionDownloaderFilter(
+        ExceptionDownloaderCallback(
+            ExceptionDownloaderFilterCallback(
+                SleepDownloader(i),
+                rate=0.2),
+            rate=0.2),
+        rate=0.2)
 
 
 pair = Pair([TestSleepFeeder(0)], [TestSleepDownloader(0)], timedelta(seconds=5), 4, 4)

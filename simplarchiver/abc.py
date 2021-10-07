@@ -49,13 +49,12 @@ class FilterFeeder(Feeder):
                 item = await self.filter(item)
                 self.__logger.debug("filter |  after: %s" % item)
             except Exception:
-                self.__logger.exception("Catch an Exception from your FilterFeeder, skip it: %s" % item)
+                self.__logger.exception("Catch an Exception from your Feeder Filter, skip it: %s" % item)
                 item = None
             if item is not None:  # 如果过滤器返回了None，则会被过滤掉，不会被yield
                 yield item
             else:
                 self.__logger.debug("filter | item is None, skip")
-
 
 
 class FilterDownloader(Downloader):
@@ -85,7 +84,7 @@ class FilterDownloader(Downloader):
             item = await self.filter(item)
             self.__logger.debug("filter |  after: %s" % item)
         except Exception:
-            self.__logger.exception("Catch an Exception from your FilterDownloader, skip it: %s" % item)
+            self.__logger.exception("Catch an Exception from your Downloader Filter, skip it: %s" % item)
             item = None
         if item is not None:  # 如果过滤器返回了None，则会被过滤掉，不会被Download
             return await self.__base_downloader.download(item)
@@ -96,9 +95,14 @@ class FilterDownloader(Downloader):
 class CallbackDownloader(Downloader):
     """具有回调功能的Downloader"""
 
+    __ID: int = 0
+
     def __init__(self, base_downloader: Downloader):
         """从一个基本的Downloader生成具有回调功能Downloader"""
         self.__base_downloader = base_downloader
+        self.__id: int = CallbackDownloader.__ID
+        self.__logger = logging.getLogger("CallbackDownloader %d" % self.__id)
+        CallbackDownloader.__ID += 1
 
     @abc.abstractmethod
     async def callback(self, item, return_code):
@@ -108,7 +112,15 @@ class CallbackDownloader(Downloader):
         pass
 
     async def download(self, item):
-        return await self.callback(item, await self.__base_downloader.download(item))
+        return_code = await self.__base_downloader.download(item)
+        self.__logger.debug("return_code is: %s" % return_code)
+        self.__logger.debug("callback | start")
+        try:
+            await self.callback(item, return_code)
+        except Exception:
+            self.__logger.exception("Catch an Exception from your Callback:")
+        self.__logger.debug("callback |   end")
+        return return_code  # 调用了回调之后将return_code继续向下一级返回
 
 
 '''下面这个抽象类是FilterDownloader和CallbackDownloader的杂交'''
@@ -148,11 +160,17 @@ class FilterCallbackDownloader(Downloader):
             item = await self.filter(item)
             self.__logger.debug("filter |  after: %s" % item)
         except Exception:
-            self.__logger.exception("Catch an filter Exception from your FilterCallbackDownloader, skip it: %s" % item)
+            self.__logger.exception("Catch an Exception from your Filter, skip it: %s" % item)
             item = None
         if item is not None:  # 如果过滤器返回了None，则会被过滤掉，不会被Download
             return_code = await self.__base_downloader.download(item)
-            await self.callback(item, return_code)
+            self.__logger.debug("return_code is: %s" % return_code)
+            self.__logger.debug("callback | start")
+            try:
+                await self.callback(item, return_code)
+            except Exception:
+                self.__logger.exception("Catch an Exception from your Callback:")
+            self.__logger.debug("callback |   end")
             return return_code  # 调用了回调之后将return_code继续向下一级返回
         else:
             self.__logger.debug("filter | item is None, skip")
