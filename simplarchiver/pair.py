@@ -70,12 +70,18 @@ class FeedController:
     async def __get_feeds(self, sem: asyncio.Semaphore):
         """以固定并发数进行self.__feeder.get_feeds()"""
         try:
+            self.__logger.debug('get_feeds | starting iter')
             it = self.__feeder.get_feeds()
+            self.__logger.debug('get_feeds | iter started')
             while True:
+                self.__logger.debug('get_feeds | wait for sem')
                 async with sem:  # 不直接用async for就是为了这个在next前面调用的信号量
+                    self.__logger.debug('get_feeds | sem got, wait for next feed')
                     feed = await it.__anext__()
+                    self.__logger.debug('get_feeds | feed got: %s' % feed)
                     yield feed
         except StopAsyncIteration:
+            self.__logger.debug('get_feeds | iter exited')
             pass
         except Exception:  # 如果出错其他错直接退出
             self.__logger.exception('Catch an Exception from your Feeder:')
