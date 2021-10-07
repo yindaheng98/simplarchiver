@@ -20,9 +20,9 @@ class DownloadController:
 
     async def put(self, item):
         """将待下载的feed item入队列"""
-        self.__logger.debug(' start put item: %s' % item)
+        self.__logger.debug('putting item: %s' % item)
         await self.__queue.put(item)
-        self.__logger.debug('finish put item: %s' % item)
+        self.__logger.debug('   item put : %s' % item)
 
     async def join(self):
         """等待队列中的所有任务完成"""
@@ -39,19 +39,19 @@ class DownloadController:
         # 这是由于asyncio.run会生成新的事件循环，不同事件循环中的事件不能互相调用
         self.__logger.debug('coroutine | start')
         while True:
-            self.__logger.debug('coroutine | wait for an item')
+            self.__logger.debug('coroutine | wait for next item')
             item = await self.__queue.get()
-            self.__logger.debug('coroutine | get an item            : %s' % item)
+            self.__logger.debug('coroutine |                item got: %s' % item)
             if item is None:
                 self.__queue.task_done()
                 break  # 用None表示feed结束
             async with sem:
-                self.__logger.debug('coroutine | start download item    : %s' % item)
+                self.__logger.debug('coroutine |  download process start: %s' % item)
                 try:
                     await self.__downloader.download(item)
                 except Exception:
                     self.__logger.exception('Catch an Exception from your Downloader:')
-                self.__logger.debug('coroutine | finish download item   : %s' % item)
+                self.__logger.debug('coroutine | download process exited: %s' % item)
                 self.__queue.task_done()  # task_done配合join可以判断任务是否全部完成
         self.__logger.debug('coroutine | end')
 
