@@ -7,7 +7,7 @@ import httpx
 from simplarchiver import Pair
 from simplarchiver.example.rss import TTRSSCatFeeder, TTRSSHubLinkFeeder
 from simplarchiver.example import JustDownloader, SubprocessDownloader, JustLogCallbackDownloader
-from simplarchiver.example.file import UpdateDownloader
+from simplarchiver.example.file import CentralizedUpdateDownloader
 from test_secret import ttrss_data
 
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -35,7 +35,7 @@ subprocess_downloaders = [
             lambda x: 'ping 127.0.0.1', 'gbk',
             logger=logging.getLogger("test_SubprocessDownloader")),
         logger=logging.getLogger("test_JustLogCallbackDownloader")),
-    UpdateDownloader(
+    CentralizedUpdateDownloader(
         base_downloader=SubprocessDownloader(
             lambda x: 'ping 127.0.0.1', 'gbk',
             logger=logging.getLogger("test_SubprocessDownloader")),
