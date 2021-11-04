@@ -1,2 +1,2 @@
-from .update import UpdateRW, UpdateDownloader, CentralizedUpdateDownloader
+from .update import CentralizedUpdateDownloader
 from .file import FileFeeder, DirFeeder, WalkFeeder, ExtFilterFeeder
