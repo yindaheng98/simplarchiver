@@ -3,7 +3,7 @@ import logging
 
 from simplarchiver.example import SleepFeeder, SleepDownloader
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.DEBUG, format=' %(asctime)s | %(levelname)-8s | %(name)-26s | %(message)s')
 
 
 def log(msg):

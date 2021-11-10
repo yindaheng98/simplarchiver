@@ -4,7 +4,7 @@ from datetime import timedelta
 import logging
 import asyncio
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.DEBUG, format=' %(asctime)s | %(levelname)-8s | %(name)-26s | %(message)s')
 
 
 def log(msg):
