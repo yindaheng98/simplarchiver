@@ -1,5 +1,4 @@
 import asyncio
-import logging
 
 import qbittorrentapi
 
@@ -9,10 +8,10 @@ from simplarchiver import Downloader
 class QBittorrentDownloader(Downloader):
     """用qBittorrent Web API下载种子文件"""
 
-    def __init__(self, logger=logging.getLogger("QBittorrentDownloader"), **qb_cli_opt):
+    def __init__(self, **qb_cli_opt):
         """qb_cli_opt是用于运行时创建qbittorrentapi.client.Client的输入参数"""
+        super().__init__()
         self.qb_cli_opt = qb_cli_opt
-        self.__logger = logger
 
     def __torrent_add(self, kwargs):
         try:
@@ -20,9 +19,8 @@ class QBittorrentDownloader(Downloader):
             qbt_client.auth_log_in()
             return qbt_client.torrents_add(**kwargs)
         except Exception as e:
-            self.__logger.exception(e)
+            self.getLogger().exception(e)
             return e
-        
 
     async def download(self, item):
         """下载输入的item实际上是qbittorrentapi.Client。torrents_add的输入参数**kwargs"""

@@ -53,10 +53,9 @@ class UpdateList:
 
 
 class UpdateListRW(UpdateRW):
-    def __init__(self,
-                 update_list_path: str,
-                 update_list_pair_gen: Callable[[Any], Tuple[str, str]],
+    def __init__(self, update_list_path: str, update_list_pair_gen: Callable[[Any], Tuple[str, str]],
                  logger: logging.Logger = logging.getLogger("UpdateDownloader")):
+        super().__init__()
         self.__update_list = UpdateList(update_list_path, logger)
         self.__update_list_pair_gen = update_list_pair_gen
         self.__logger = logger
@@ -90,6 +89,5 @@ def CentralizedUpdateDownloader(
         logger: logging.Logger = logging.getLogger("UpdateDownloader")):
     return UpdateDownloader(
         base_downloader,
-        UpdateListRW(update_list_path, update_list_pair_gen, logger),
-        logger
+        UpdateListRW(update_list_path, update_list_pair_gen, logger)
     )

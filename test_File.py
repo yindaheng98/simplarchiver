@@ -3,7 +3,7 @@ import asyncio
 import logging
 from datetime import timedelta
 
-from simplarchiver import Pair, FilterDownloader
+from simplarchiver import Pair, Filter, Downloader, FilterDownloader
 from simplarchiver.example import JustDownloader
 from simplarchiver.example.file import FileFeeder, DirFeeder, WalkFeeder, ExtFilterFeeder
 from simplarchiver.example.qbittorrent import QBittorrentDownloader
@@ -20,7 +20,7 @@ ttrss_feeders = [
 ]
 
 
-class QBItemFilterDownloader(FilterDownloader):
+class QBItemFilter(Filter):
 
     async def filter(self, item):
         if os.path.splitext(item)[1].lower() != '.torrent':
@@ -29,6 +29,10 @@ class QBItemFilterDownloader(FilterDownloader):
             'torrent_files': item,
             'save_path': qb_data['save_path_gen'](item),
         }
+
+
+def QBItemFilterDownloader(base_downloader: Downloader):
+    return FilterDownloader(base_downloader, QBItemFilter())
 
 
 just_downloaders = [QBItemFilterDownloader(JustDownloader(i)) for i in range(1, 4)]
