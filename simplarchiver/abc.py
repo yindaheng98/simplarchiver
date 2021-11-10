@@ -1,20 +1,25 @@
 import abc
 import logging
-from typing import Callable, Any, Dict
+from typing import Callable, Any
 
 
 class Logger:
     """用于记录日志的统一接口"""
-    subclass_list: Dict[str, int] = {}
+    __ID: int = 0
+    TagPadding = 20
 
-    def __init__(self):
-        if self.__class__.__name__ not in Logger.subclass_list:
-            Logger.subclass_list[self.__class__.__name__] = 1
-        self.__ID = Logger.subclass_list[self.__class__.__name__]
-        Logger.subclass_list[self.__class__.__name__] += 1
+    def __init__(self, tag: str = None):
+        self.__tag = tag
+        if self.__tag is None:
+            self.__tag = "Untagged Class %d" % Logger.__ID
+            Logger.__ID += 1
 
     def getLogger(self):
-        return logging.getLogger("%s %d" % (self.__class__.__name__, self.__ID))
+        return logging.getLogger(("%%-%ds | %%s" % Logger.TagPadding) % (self.__tag, self.__class__.__name__))
+
+    def setTag(self, tag):
+        if self.__tag is not None:
+            self.__tag = tag
 
 
 class Feeder(Logger, metaclass=abc.ABCMeta):
@@ -51,9 +56,11 @@ class Filter(Logger, metaclass=abc.ABCMeta):
 class FilterFeeder(Feeder):
     """带过滤功能的Feeder"""
 
-    def __init__(self, base_feeder: Feeder, filter: Filter):
+    def __init__(self, base_feeder: Feeder, filter: Filter, tag: str = None):
         """从一个基本的Feeder生成带过滤的Feeder"""
-        super().__init__()
+        super().__init__(tag)
+        base_feeder.setTag(tag)
+        filter.setTag(tag)
         self.__base_feeder = base_feeder
         self.__filter = filter
 
@@ -76,9 +83,10 @@ class FilterFeeder(Feeder):
 class AmplifierFeeder(Feeder):
     """基于一个Feeder生成的item生成多个Feeder进而生成多个item"""
 
-    def __init__(self, base_feeder: Feeder, ampl_feeder_gen: Callable[[Any], Feeder]):
+    def __init__(self, base_feeder: Feeder, ampl_feeder_gen: Callable[[Any], Feeder], tag: str = None):
         """从一个基本的Feeder和一个放大器Feeder生成器生成带过滤的Feeder"""
-        super().__init__()
+        super().__init__(tag)
+        base_feeder.setTag(tag)
         self.__base_feeder = base_feeder
         self.__ampl_feeder_gen = ampl_feeder_gen
 
@@ -104,9 +112,10 @@ class AmplifierFeeder(Feeder):
 class FilterDownloader(Downloader):
     """带过滤功能的Downloader"""
 
-    def __init__(self, base_downloader: Downloader, filter: Filter):
+    def __init__(self, base_downloader: Downloader, filter: Filter, tag: str = None):
         """从一个基本的Downloader生成带过滤的Downloader"""
-        super().__init__()
+        super().__init__(tag)
+        base_downloader.setTag(tag)
         self.__base_downloader = base_downloader
         self.__filter = filter
 
@@ -139,9 +148,11 @@ class Callback(Logger, metaclass=abc.ABCMeta):
 class CallbackDownloader(Downloader):
     """具有回调功能的Downloader"""
 
-    def __init__(self, base_downloader: Downloader, callback: Callback):
+    def __init__(self, base_downloader: Downloader, callback: Callback, tag: str = None):
         """从一个基本的Downloader生成具有回调功能Downloader"""
-        super().__init__()
+        super().__init__(tag)
+        base_downloader.setTag(tag)
+        callback.setTag(tag)
         self.__base_downloader = base_downloader
         self.__callback = callback
 
@@ -163,9 +174,12 @@ class CallbackDownloader(Downloader):
 class FilterCallbackDownloader(Downloader):
     """同时具有过滤和回调功能的Downloader"""
 
-    def __init__(self, base_downloader: Downloader, filter: Filter, callback: Callback):
+    def __init__(self, base_downloader: Downloader, filter: Filter, callback: Callback, tag: str = None):
         """从一个基本的Downloader生成具有过滤和回调功能Downloader"""
-        super().__init__()
+        super().__init__(tag)
+        base_downloader.setTag(tag)
+        filter.setTag(tag)
+        callback.setTag(tag)
         self.__base_downloader = base_downloader
         self.__filter = filter
         self.__callback = callback
