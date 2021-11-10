@@ -37,12 +37,12 @@ class DownloadController(Logger):
         while True:
             self.getLogger().debug('coroutine | wait for next item')
             item = await self.__queue.get()
-            self.getLogger().debug('coroutine |                item got: %s' % item)
+            self.getLogger().debug('coroutine | item got: %s' % item)
             if item is None:
                 self.__queue.task_done()
                 break  # 用None表示feed结束
             async with sem:
-                self.getLogger().debug('coroutine |  download process start: %s' % item)
+                self.getLogger().debug('coroutine | download process start: %s' % item)
                 try:
                     await self.__downloader.download(item)
                 except Exception:

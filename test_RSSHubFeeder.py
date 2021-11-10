@@ -10,7 +10,7 @@ from simplarchiver.example.rss import EnclosureOnlyDownloader, EnclosureExceptDo
 from simplarchiver.example.rss import RSSHubFeeder, RSSHubMultiPageFeeder
 from test_secret import rsshub_data, rsshub_multipage_data
 
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.DEBUG, format=' %(asctime)s | %(levelname)-8s | %(name)-26s | %(message)s')
 
 
 def log(msg):
@@ -19,7 +19,6 @@ def log(msg):
 
 rsshub_feeders = [RSSHubFeeder(
     url=rsshub,
-    logger=logging.getLogger("test_RSSHubFeeder %s" % rsshub),
     httpx_client_opt_generator=lambda: {
         'timeout': httpx.Timeout(20.0),
         'transport': httpx.AsyncHTTPTransport(retries=10)
@@ -28,7 +27,6 @@ rsshub_feeders = [RSSHubFeeder(
 
 rsshub_multipage_feeders = [RSSHubMultiPageFeeder(
     url_gen=rsshub['url_gen'], max_pages=rsshub['max_pages'],
-    logger=logging.getLogger("test_RSSHubMultiPageFeeder %s" % rsshub)
 ) for rsshub in rsshub_multipage_data]
 
 just_downloaders = [JustDownloader(i) for i in range(1, 4)]
