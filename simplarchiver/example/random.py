@@ -1,5 +1,4 @@
 import asyncio
-import logging
 import random
 import uuid
 
@@ -17,44 +16,39 @@ class RandomFeeder(Feeder):
         n表示总共要返回多少个item
         如果没有指定seconds，那就睡眠最大rand_max秒的随机时长
         """
+        super().__init__()
         self.rand_max = rand_max
         self.n = n
         self.id = i
-        self.log('Initialized: rand_max=%s, n=%s' % (rand_max, n))
-
-    def log(self, msg):
-        logging.info('RandomFeeder    %s | %s' % (self.id, msg))
+        self.getLogger().info('Initialized: rand_max=%s, n=%s' % (rand_max, n))
 
     async def get_feeds(self):
         for i in range(0, self.n):
             RandomFeeder.running += 1
-            self.log('Now there are %d RandomFeeder awaiting including me' % RandomFeeder.running)
+            self.getLogger().info('Now there are %d RandomFeeder awaiting including me' % RandomFeeder.running)
             item = await asyncio.sleep(delay=0.1, result=random.random() * self.rand_max)
-            self.log('Time to wake up and return an item %s' % item)
+            self.getLogger().info('Time to wake up and return an item %s' % item)
             RandomFeeder.running -= 1
-            self.log('Now there are %d RandomFeeder awaiting' % RandomFeeder.running)
+            self.getLogger().info('Now there are %d RandomFeeder awaiting' % RandomFeeder.running)
             yield item
 
 
 class RandomFilter(Filter):
     """一个随机过滤item的Feeder"""
 
-    def __init__(self, logger: logging.Logger = logging.getLogger("RandomFilter")):
-        self.__logger = logger
+    def __init__(self):
+        super().__init__()
 
     async def filter(self, item):
         r = random.random()
-        self.__logger.info(
-            "RandomFilterFeeder rand  a number %f and item %s, " % (r, item) + (
-                "keep the item" if r > 0.5 else "drop the item"))
+        self.getLogger().info(
+            "rand  a number %f and item %s, " % (r, item) + ("keep the item" if r > 0.5 else "drop the item"))
         return item if r > 0.5 else None
 
 
-def RandomFilterFeeder(base_feeder: Feeder,
-                       logger: logging.Logger = logging.getLogger("RandomFilterFeeder")):
-    return FilterFeeder(base_feeder, RandomFilter(logger))
+def RandomFilterFeeder(base_feeder: Feeder):
+    return FilterFeeder(base_feeder, RandomFilter())
 
 
-def RandomFilterDownloader(base_downloader: Downloader,
-                           logger: logging.Logger = logging.getLogger("RandomFilterDownloader")):
-    return FilterDownloader(base_downloader, RandomFilter(logger))
+def RandomFilterDownloader(base_downloader: Downloader):
+    return FilterDownloader(base_downloader, RandomFilter())

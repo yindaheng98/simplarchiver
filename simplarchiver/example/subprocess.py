@@ -1,5 +1,4 @@
 import asyncio
-import logging
 from typing import Callable
 
 from simplarchiver import Downloader
@@ -8,9 +7,7 @@ from simplarchiver import Downloader
 class SubprocessDownloader(Downloader):
     """运行指令开子进程下载"""
 
-    def __init__(self, cmd_gen: Callable[[dict], str],
-                 stdout_encoding='utf-8',
-                 logger: logging.Logger = logging.getLogger("SubprocessDownloader")):
+    def __init__(self, cmd_gen: Callable[[dict], str], stdout_encoding='utf-8'):
         """
         url_gen是输入item生成指令的函数
         stdout_encoding是标准输出的解码方式
@@ -19,24 +16,24 @@ class SubprocessDownloader(Downloader):
             2) 生成的指令
             3) 程序退出时返回的returncode
         """
+        super().__init__()
         self.__cmd_gen = cmd_gen
         self.__stdout_encoding = stdout_encoding
-        self.__logger = logger
 
     async def __readline_info(self, f):
         async for line in f:
-            self.__logger.info(
+            self.getLogger().info(
                 'stdout  | %s' % line.decode(self.__stdout_encoding).strip())
 
     async def __readline_debug(self, f):
         async for line in f:
-            self.__logger.info(
+            self.getLogger().info(
                 'stderr  | %s' % line.decode(self.__stdout_encoding).strip())
 
     async def download(self, item):
-        self.__logger.debug("item    | %s" % item)
+        self.getLogger().debug("item    | %s" % item)
         cmd = self.__cmd_gen(item)
-        self.__logger.info("command | %s" % cmd)
+        self.getLogger().info("command | %s" % cmd)
         proc = await asyncio.create_subprocess_shell(
             cmd,
             stdout=asyncio.subprocess.PIPE,

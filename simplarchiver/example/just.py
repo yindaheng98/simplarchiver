@@ -1,5 +1,4 @@
 import asyncio
-import logging
 import uuid
 
 from simplarchiver import Downloader, Callback, CallbackDownloader
@@ -13,33 +12,30 @@ class JustDownloader(Downloader):
         """
         i表示Feeder的编号
         """
+        super().__init__()
         self.id = i
-        self.log('Initialized')
-
-    def log(self, msg):
-        logging.info('JustDownloader %s | %s' % (self.id, msg))
+        self.getLogger().info('Initialized')
 
     async def download(self, item):
-        self.log('I get an item! %s' % item)
+        self.getLogger().info('I get an item! %s' % item)
         JustDownloader.running += 1
-        self.log('Now there are %d SleepDownloader awaiting including me' % JustDownloader.running)
+        self.getLogger().info('Now there are %d SleepDownloader awaiting including me' % JustDownloader.running)
         item = await asyncio.sleep(delay=0.1, result=item)
-        self.log('For the item %s, time to wake up' % item)
+        self.getLogger().info('For the item %s, time to wake up' % item)
         JustDownloader.running -= 1
-        self.log('Now there are %d SleepDownloader awaiting' % JustDownloader.running)
+        self.getLogger().info('Now there are %d SleepDownloader awaiting' % JustDownloader.running)
 
 
 class JustLogCallback(Callback):
     """只是把Callback的内容输出到log而已"""
 
-    def __init__(self, logger: logging.Logger = logging.getLogger("JustLogCallback")):
-        self.__logger = logger
+    def __init__(self):
+        super().__init__()
 
     async def callback(self, item, return_code):
-        self.__logger.info(
+        self.getLogger().info(
             "JustLogCallbackDownloader run its callback, return_code: %s, item: %s" % (return_code, item))
 
 
-def JustLogCallbackDownloader(base_downloader: Downloader,
-                              logger: logging.Logger = logging.getLogger("JustLogCallbackDownloader")):
-    return CallbackDownloader(base_downloader, JustLogCallback(logger))
+def JustLogCallbackDownloader(base_downloader: Downloader):
+    return CallbackDownloader(base_downloader, JustLogCallback())
