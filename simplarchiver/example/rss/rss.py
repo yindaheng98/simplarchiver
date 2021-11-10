@@ -194,7 +194,24 @@ class TTRSSCatFeeder(Feeder):
                 yield i
 
 
-class TTRSSHubLinkFeeder(FilterFeeder):
+async def TTRSSHubLinkTrans(item, httpx_client_opt_generator):
+    """
+    从TTRSS返回的Category Feed中获取原始link
+    实际上就是根据TTRSS返回的item["link"]获取RSS Feed里面的link标签内容，以此替换item["link"]
+    专为TTRSSHubLinkFeeder和TTRSSHubLinkDownloader设计
+    """
+    rss_link = item["link"]
+    async with httpx.AsyncClient(**httpx_client_opt_generator()) as client:
+        response = await client.get(rss_link)
+        root = ElementTree.XML(response.content)
+        channel = root.find('channel')
+        link = channel.find('link').text
+        item["link"] = link
+        item['pubDate'] = list(root.iter('item'))[0].find('pubDate').text
+    return item
+
+
+class TTRSSHubLinkFeeder(FilterFeeder, FilterDownloader):
     """
     从TTRSS返回的Category Feed中获取原始link
     实际上就是在filter中根据TTRSS返回的item["link"]获取RSS Feed里面的link标签内容，以此替换item["link"]
@@ -211,15 +228,31 @@ class TTRSSHubLinkFeeder(FilterFeeder):
         self.httpx_client_opt_generator = httpx_client_opt_generator
 
     async def filter(self, item):
-        rss_link = item["link"]
-        async with httpx.AsyncClient(**self.httpx_client_opt_generator()) as client:
-            response = await client.get(rss_link)
-            root = ElementTree.XML(response.content)
-            channel = root.find('channel')
-            link = channel.find('link').text
-            item["link"] = link
-            item['pubDate'] = list(root.iter('item'))[0].find('pubDate').text
-        self.__logger.info("got the original link of %s: %s" % (rss_link, item["link"]))
+        item = await TTRSSHubLinkTrans(item, self.httpx_client_opt_generator)
+        self.__logger.info("got the original link: %s" % item["link"])
+        return item
+
+
+class TTRSSHubLinkDownloader(FilterDownloader):
+    """
+    从TTRSS返回的Category Feed中获取原始link
+    实际上就是在filter中根据TTRSS返回的item["link"]获取RSS Feed里面的link标签内容，以此替换item["link"]
+    """
+
+    def __init__(self, base_downloader: Downloader,
+                 logger: logging.Logger = logging.getLogger("TTRSSHubLinkDownloader"),
+                 httpx_client_opt_generator: Callable[[], Dict] = default_httpx_client_opt_generator):
+        """
+        httpx_client_opt_generator是一个函数，返回发起请求所用的httpx.AsyncClient()设置
+        httpx.AsyncHTTPTransport不能重复使用，所以每次都得返回新的
+        """
+        super().__init__(base_downloader)
+        self.__logger = logger
+        self.httpx_client_opt_generator = httpx_client_opt_generator
+
+    async def filter(self, item):
+        item = await TTRSSHubLinkTrans(item, self.httpx_client_opt_generator)
+        self.__logger.info("got the original link: %s" % item["link"])
         return item
 
 
