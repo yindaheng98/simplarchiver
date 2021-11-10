@@ -1,9 +1,23 @@
 import abc
 import logging
-from typing import Callable, Any
+from typing import Callable, Any, Dict
 
 
-class Feeder(metaclass=abc.ABCMeta):
+class Logger:
+    """用于记录日志的统一接口"""
+    subclass_list: Dict[str, int] = {}
+
+    def __init__(self):
+        if self.__class__.__name__ not in Logger.subclass_list:
+            Logger.subclass_list[self.__class__.__name__] = 1
+        self.__ID = Logger.subclass_list[self.__class__.__name__]
+        Logger.subclass_list[self.__class__.__name__] += 1
+
+    def getLogger(self):
+        return logging.getLogger("%s %d" % (self.__class__.__name__, self.__ID))
+
+
+class Feeder(Logger, metaclass=abc.ABCMeta):
     """最基本的Feeder"""
 
     @abc.abstractmethod
@@ -11,7 +25,7 @@ class Feeder(metaclass=abc.ABCMeta):
         yield
 
 
-class Downloader(metaclass=abc.ABCMeta):
+class Downloader(Logger, metaclass=abc.ABCMeta):
     """最基本的Downloader"""
 
     @abc.abstractmethod
@@ -22,7 +36,7 @@ class Downloader(metaclass=abc.ABCMeta):
 '''以下抽象类是一些可有可无的扩展功能'''
 
 
-class Filter(metaclass=abc.ABCMeta):
+class Filter(Logger, metaclass=abc.ABCMeta):
     """过滤器，给FilterFeeder和FilterDownloader用"""
 
     @abc.abstractmethod
@@ -37,93 +51,81 @@ class Filter(metaclass=abc.ABCMeta):
 class FilterFeeder(Feeder):
     """带过滤功能的Feeder"""
 
-    __ID: int = 0
-
     def __init__(self, base_feeder: Feeder, filter: Filter):
         """从一个基本的Feeder生成带过滤的Feeder"""
+        super().__init__()
         self.__base_feeder = base_feeder
         self.__filter = filter
-        self.__id: int = FilterFeeder.__ID
-        self.__logger = logging.getLogger("FilterFeeder %d" % self.__id)
-        FilterFeeder.__ID += 1
 
     async def get_feeds(self):
         """带过滤的Feeder的Feed过程"""
         async for item in self.__base_feeder.get_feeds():
             try:
-                self.__logger.debug("before filter: %s" % item)
+                self.getLogger().debug("before filter: %s" % item)
                 item = await self.__filter.filter(item)
-                self.__logger.debug("after  filter: %s" % item)
+                self.getLogger().debug("after  filter: %s" % item)
             except Exception:
-                self.__logger.exception("Catch an Exception from your Feeder Filter, skip it: %s" % item)
+                self.getLogger().exception("Catch an Exception from your Feeder Filter, skip it: %s" % item)
                 item = None
             if item is not None:  # 如果过滤器返回了None，则会被过滤掉，不会被yield
                 yield item
             else:
-                self.__logger.debug("item is None, skip")
+                self.getLogger().debug("item is None, skip")
 
 
 class AmplifierFeeder(Feeder):
     """基于一个Feeder生成的item生成多个Feeder进而生成多个item"""
 
-    __ID: int = 0
-
     def __init__(self, base_feeder: Feeder, ampl_feeder_gen: Callable[[Any], Feeder]):
         """从一个基本的Feeder和一个放大器Feeder生成器生成带过滤的Feeder"""
+        super().__init__()
         self.__base_feeder = base_feeder
         self.__ampl_feeder_gen = ampl_feeder_gen
-        self.__id: int = AmplifierFeeder.__ID
-        self.__logger = logging.getLogger("AmplifierFeeder %d" % self.__id)
-        AmplifierFeeder.__ID += 1
 
     async def get_feeds(self):
         async for item in self.__base_feeder.get_feeds():  # 获取基本Feeder里的item
             try:
-                self.__logger.debug("amplifying item: %s" % item)
+                self.getLogger().debug("amplifying item: %s" % item)
                 sub_feeder = self.__ampl_feeder_gen(item)  # 生成放大器Feeder
-                self.__logger.debug("item  amplified: %s" % item)
+                self.getLogger().debug("item  amplified: %s" % item)
             except Exception:
-                self.__logger.exception("Catch an Exception from your Amplifier Generator, skip it: %s" % item)
+                self.getLogger().exception("Catch an Exception from your Amplifier Generator, skip it: %s" % item)
                 sub_feeder = None
             if sub_feeder is not None:
                 try:
                     async for sub_item in sub_feeder.get_feeds():  # 获取放大器Feeder里的item
                         yield sub_item
                 except Exception:
-                    self.__logger.exception("Catch an Exception from your Amplifier Feeder, skip it: %s" % item)
+                    self.getLogger().exception("Catch an Exception from your Amplifier Feeder, skip it: %s" % item)
             else:
-                self.__logger.debug("Amplifier Feeder is None, skip")
+                self.getLogger().debug("Amplifier Feeder is None, skip")
 
 
 class FilterDownloader(Downloader):
     """带过滤功能的Downloader"""
 
-    __ID: int = 0
-
     def __init__(self, base_downloader: Downloader, filter: Filter):
         """从一个基本的Downloader生成带过滤的Downloader"""
+        super().__init__()
         self.__base_downloader = base_downloader
         self.__filter = filter
-        self.__id: int = FilterDownloader.__ID
-        self.__logger = logging.getLogger("FilterDownloader %d" % self.__id)
-        FilterDownloader.__ID += 1
 
     async def download(self, item):
         """带过滤的Downloader的Download过程"""
         try:
-            self.__logger.debug("before filter: %s" % item)
+            self.getLogger().debug("before filter: %s" % item)
             item = await self.__filter.filter(item)
-            self.__logger.debug("after  filter: %s" % item)
+            self.getLogger().debug("after  filter: %s" % item)
         except Exception:
-            self.__logger.exception("Catch an Exception from your Downloader Filter, skip it: %s" % item)
+            self.getLogger().exception("Catch an Exception from your Downloader Filter, skip it: %s" % item)
             item = None
         if item is not None:  # 如果过滤器返回了None，则会被过滤掉，不会被Download
             return await self.__base_downloader.download(item)
         else:
-            self.__logger.debug("item is None, skip")
+            self.getLogger().debug("item is None, skip")
 
 
-class Callback(metaclass=abc.ABCMeta):
+class Callback(Logger, metaclass=abc.ABCMeta):
     """回调器，给CallbackDownloader用"""
 
     @abc.abstractmethod
@@ -137,25 +139,21 @@ class Callback(metaclass=abc.ABCMeta):
 class CallbackDownloader(Downloader):
     """具有回调功能的Downloader"""
 
-    __ID: int = 0
-
     def __init__(self, base_downloader: Downloader, callback: Callback):
         """从一个基本的Downloader生成具有回调功能Downloader"""
+        super().__init__()
         self.__base_downloader = base_downloader
         self.__callback = callback
-        self.__id: int = CallbackDownloader.__ID
-        self.__logger = logging.getLogger("CallbackDownloader %d" % self.__id)
-        CallbackDownloader.__ID += 1
 
     async def download(self, item):
         return_code = await self.__base_downloader.download(item)
-        self.__logger.debug("return_code is: %s" % return_code)
-        self.__logger.debug("start  callback")
+        self.getLogger().debug("return_code is: %s" % return_code)
+        self.getLogger().debug("start  callback")
         try:
             await self.__callback.callback(item, return_code)
         except Exception:
-            self.__logger.exception("Catch an Exception from your Callback:")
-        self.__logger.debug("finish callback")
+            self.getLogger().exception("Catch an Exception from your Callback:")
+        self.getLogger().debug("finish callback")
         return return_code  # 调用了回调之后将return_code继续向下一级返回
 
 
@@ -165,35 +163,31 @@ class CallbackDownloader(Downloader):
 class FilterCallbackDownloader(Downloader):
     """同时具有过滤和回调功能的Downloader"""
 
-    __ID: int = 0
-
     def __init__(self, base_downloader: Downloader, filter: Filter, callback: Callback):
         """从一个基本的Downloader生成具有过滤和回调功能Downloader"""
+        super().__init__()
         self.__base_downloader = base_downloader
         self.__filter = filter
         self.__callback = callback
-        self.__id: int = FilterCallbackDownloader.__ID
-        self.__logger = logging.getLogger("FilterCallbackDownloader %d" % self.__id)
-        FilterCallbackDownloader.__ID += 1
 
     async def download(self, item):
         """过滤+回调"""
         try:
-            self.__logger.debug("before filter: %s" % item)
+            self.getLogger().debug("before filter: %s" % item)
             item = await self.__filter.filter(item)
-            self.__logger.debug("after  filter: %s" % item)
+            self.getLogger().debug("after  filter: %s" % item)
         except Exception:
-            self.__logger.exception("Catch an Exception from your Filter, skip it: %s" % item)
+            self.getLogger().exception("Catch an Exception from your Filter, skip it: %s" % item)
             item = None
         if item is not None:  # 如果过滤器返回了None，则会被过滤掉，不会被Download
             return_code = await self.__base_downloader.download(item)
-            self.__logger.debug("return_code is: %s" % return_code)
-            self.__logger.debug("start  callback")
+            self.getLogger().debug("return_code is: %s" % return_code)
+            self.getLogger().debug("start  callback")
             try:
                 await self.__callback.callback(item, return_code)
             except Exception:
-                self.__logger.exception("Catch an Exception from your Callback:")
-            self.__logger.debug("finish callback")
+                self.getLogger().exception("Catch an Exception from your Callback:")
+            self.getLogger().debug("finish callback")
             return return_code  # 调用了回调之后将return_code继续向下一级返回
         else:
-            self.__logger.debug("item is None, skip")
+            self.getLogger().debug("item is None, skip")
