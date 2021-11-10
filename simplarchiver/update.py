@@ -1,10 +1,7 @@
-import abc
-import logging
-
-from simplarchiver import Downloader, FilterCallbackDownloader
+from .abc import *
 
 
-class UpdateRW(metaclass=abc.ABCMeta):
+class UpdateRW(Logger, metaclass=abc.ABCMeta):
     """读写更新标记"""
 
     @abc.abstractmethod
@@ -24,49 +21,55 @@ class UpdateRW(metaclass=abc.ABCMeta):
         pass
 
 
-class UpdateDownloader(FilterCallbackDownloader):
-    """
-    将一个普通下载器封装为带更新记录和过滤功能的下载器
-    这个下载器会记录所有下载成功的item的更新标签
-    只有在接收到的item不在更新标签列表或者更新标签发生变化的时候才会执行下载
-    """
+class UpdateFilter(Filter):
 
-    def __init__(self,
-                 base_downloader: Downloader,
-                 update_rw: UpdateRW,
-                 logger: logging.Logger = logging.getLogger("UpdateDownloader")):
+    def __init__(self, update_rw: UpdateRW):
         """
         base_downloader是要封装的普通下载器
         update_rw用于指定如何写入和读取更新信息
         """
-        super().__init__(base_downloader=base_downloader)
+        super().__init__()
         self.__update_rw = update_rw
-        self.__logger = logger
 
     async def filter(self, item):
         """过滤掉更新列表里已有记录且tag值相同的item"""
         try:
             if await self.__update_rw.read(item):
-                self.__logger.info('update filter   | item will be downloaded: %s' % item)
+                self.getLogger().info('update filter   | item will be downloaded: %s' % item)
                 return item
             else:
-                self.__logger.info('update filter   | item will be skipped: %s' % item)
+                self.getLogger().info('update filter   | item will be skipped: %s' % item)
                 return None
         except Exception:
-            self.__logger.exception('update filter   | An error occured, item will be downloaded: %s' % item)
+            self.getLogger().exception('update filter   | An error occured, item will be downloaded: %s' % item)
             return item
+
+
+class UpdeteCallback(Callback):
+
+    def __init__(self, update_rw: UpdateRW):
+        """
+        base_downloader是要封装的普通下载器
+        update_rw用于指定如何写入和读取更新信息
+        """
+        super().__init__()
+        self.__update_rw = update_rw
 
     async def callback(self, item, return_code):
         """如果下载成功就刷新更新列表里对应的item的tag值"""
         if return_code is None:
-            self.__logger.info('update callback | Download finished , update will be writen: %s' % item)
+            self.getLogger().info('update callback | Download finished , update will be writen: %s' % item)
             try:
                 if await self.__update_rw.write(item):
-                    self.__logger.info('update callback | Update tag has been writen: %s' % item)
+                    self.getLogger().info('update callback | Update tag has been writen: %s' % item)
                 else:
-                    self.__logger.info('update callback | Update tag has not been writen: %s' % item)
+                    self.getLogger().info('update callback | Update tag has not been writen: %s' % item)
             except Exception:
-                self.__logger.exception('update callback | An error occured when writing update tag: %s' % item)
+                self.getLogger().exception('update callback | An error occured when writing update tag: %s' % item)
         else:
-            self.__logger.info(
+            self.getLogger().info(
                 'update callback | Downloader exit %s, update will not be writen: %s' % (return_code, item))
+
+
+def UpdateDownloader(base_downloader: Downloader, update_rw: UpdateRW):
+    return FilterCallbackDownloader(base_downloader, UpdateFilter(update_rw), UpdeteCallback(update_rw))
