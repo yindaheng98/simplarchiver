@@ -3,7 +3,8 @@ import logging
 import random
 import uuid
 
-from simplarchiver import Feeder, Downloader, FilterFeeder, FilterDownloader
+from simplarchiver import Feeder, Downloader
+from simplarchiver import Filter, FilterFeeder, FilterDownloader
 
 
 class RandomFeeder(Feeder):
@@ -35,12 +36,10 @@ class RandomFeeder(Feeder):
             yield item
 
 
-class RandomFilterFeeder(FilterFeeder):
+class RandomFilter(Filter):
     """一个随机过滤item的Feeder"""
 
-    def __init__(self, base_feeder: Feeder,
-                 logger: logging.Logger = logging.getLogger("RandomFilterFeeder")):
-        super().__init__(base_feeder)
+    def __init__(self, logger: logging.Logger = logging.getLogger("RandomFilter")):
         self.__logger = logger
 
     async def filter(self, item):
@@ -51,17 +50,11 @@ class RandomFilterFeeder(FilterFeeder):
         return item if r > 0.5 else None
 
 
-class RandomFilterDownloader(FilterDownloader):
-    """一个随机过滤item的Downloader"""
+def RandomFilterFeeder(base_feeder: Feeder,
+                       logger: logging.Logger = logging.getLogger("RandomFilterFeeder")):
+    return FilterFeeder(base_feeder, RandomFilter(logger))
 
-    def __init__(self, base_downloader: Downloader,
-                 logger: logging.Logger = logging.getLogger("RandomFilterDownloader")):
-        super().__init__(base_downloader)
-        self.__logger = logger
 
-    async def filter(self, item):
-        r = random.random()
-        self.__logger.info(
-            "RandomFilterDownloader rand a number %f and item %s, " % (r, item) + (
-                "keep the item" if r > 0.5 else "drop the item"))
-        return item if r > 0.5 else None
+def RandomFilterDownloader(base_downloader: Downloader,
+                           logger: logging.Logger = logging.getLogger("RandomFilterDownloader")):
+    return FilterDownloader(base_downloader, RandomFilter(logger))
