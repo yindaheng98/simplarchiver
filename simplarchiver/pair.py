@@ -5,30 +5,26 @@ import asyncio
 import logging
 
 
-class DownloadController:
+class DownloadController(Logger):
     """Download控制器"""
 
-    __ID: int = 0
-
     def __init__(self, downloader: Downloader, buffer_size=100):
+        super().__init__()
         self.__downloader: Downloader = downloader
         self.__buffer_size = buffer_size
         self.__queue: asyncio.Queue = None
-        self.__id: int = DownloadController.__ID
-        self.__logger = logging.getLogger("DownloadController %d" % self.__id)
-        DownloadController.__ID += 1
 
     async def put(self, item):
         """将待下载的feed item入队列"""
-        self.__logger.debug('putting item: %s' % item)
+        self.getLogger().debug('putting item: %s' % item)
         await self.__queue.put(item)
-        self.__logger.debug('   item put : %s' % item)
+        self.getLogger().debug('   item put : %s' % item)
 
     async def join(self):
         """等待队列中的所有任务完成"""
-        self.__logger.debug(' start join coroutine')
+        self.getLogger().debug(' start join coroutine')
         await self.__queue.join()
-        self.__logger.debug('finish join coroutine')
+        self.getLogger().debug('finish join coroutine')
 
     async def coroutine(self, sem: asyncio.Semaphore):
         """独立运行的Download任务"""
@@ -37,69 +33,65 @@ class DownloadController:
         # asyncio相关数据结构必须在asyncio.run之后生成，否则会出现错误：
         # got Future <Future pending> attached to a different loop
         # 这是由于asyncio.run会生成新的事件循环，不同事件循环中的事件不能互相调用
-        self.__logger.debug('coroutine | start')
+        self.getLogger().debug('coroutine | start')
         while True:
-            self.__logger.debug('coroutine | wait for next item')
+            self.getLogger().debug('coroutine | wait for next item')
             item = await self.__queue.get()
-            self.__logger.debug('coroutine |                item got: %s' % item)
+            self.getLogger().debug('coroutine |                item got: %s' % item)
             if item is None:
                 self.__queue.task_done()
                 break  # 用None表示feed结束
             async with sem:
-                self.__logger.debug('coroutine |  download process start: %s' % item)
+                self.getLogger().debug('coroutine |  download process start: %s' % item)
                 try:
                     await self.__downloader.download(item)
                 except Exception:
-                    self.__logger.exception('Catch an Exception from your Downloader:')
-                self.__logger.debug('coroutine | download process exited: %s' % item)
+                    self.getLogger().exception('Catch an Exception from your Downloader:')
+                self.getLogger().debug('coroutine | download process exited: %s' % item)
                 self.__queue.task_done()  # task_done配合join可以判断任务是否全部完成
-        self.__logger.debug('coroutine | end')
+        self.getLogger().debug('coroutine | end')
 
 
-class FeedController:
+class FeedController(Logger):
     """Feed控制器"""
 
-    __ID: int = 0
-
     def __init__(self, feeder: Feeder):
+        super().__init__()
         self.__feeder: Feeder = feeder
-        self.__id: int = FeedController.__ID
-        self.__logger = logging.getLogger("FeedController %d" % self.__id)
-        FeedController.__ID += 1
 
     async def __get_feeds(self, sem: asyncio.Semaphore):
         """以固定并发数进行self.__feeder.get_feeds()"""
         try:
-            self.__logger.debug('get_feeds | starting iter')
+            self.getLogger().debug('get_feeds | starting iter')
             it = self.__feeder.get_feeds()
-            self.__logger.debug('get_feeds | iter started')
+            self.getLogger().debug('get_feeds | iter started')
             while True:
-                self.__logger.debug('get_feeds | wait for sem')
+                self.getLogger().debug('get_feeds | wait for sem')
                 async with sem:  # 不直接用async for就是为了这个在next前面调用的信号量
-                    self.__logger.debug('get_feeds | sem got, wait for next feed')
+                    self.getLogger().debug('get_feeds | sem got, wait for next feed')
                     feed = await it.__anext__()
-                    self.__logger.debug('get_feeds | feed got: %s' % feed)
+                    self.getLogger().debug('get_feeds | feed got: %s' % feed)
                     yield feed
         except StopAsyncIteration:
-            self.__logger.debug('get_feeds | iter exited')
+            self.getLogger().debug('get_feeds | iter exited')
             pass
         except Exception:  # 如果出错其他错直接退出
-            self.__logger.exception('Catch an Exception from your Feeder:')
+            self.getLogger().exception('Catch an Exception from your Feeder:')
             return
 
     async def coroutine(self, sem: asyncio.Semaphore, download_controllers: List[DownloadController]):
         """独立运行的Feed任务"""
-        self.__logger.debug('coroutine | start')
+        self.getLogger().debug('coroutine | start')
         async for item in self.__get_feeds(sem):  # 以固定并发数获取待下载项目
-            self.__logger.debug('coroutine | get an item: %s' % item)
+            self.getLogger().debug('coroutine | get an item: %s' % item)
             if item is None:
                 continue  # None 是退出记号，要从正常的item里面过滤掉
             for dc in download_controllers:  # 每个下载器都要接收到待下载项目
-                self.__logger.debug('coroutine | start put item into queue : %s' % item)
+                self.getLogger().debug('coroutine | start put item into queue : %s' % item)
                 await dc.put(item)
-                self.__logger.debug('coroutine | finish put item into queue: %s' % item)
-            self.__logger.debug('coroutine | wait for next item')
-        self.__logger.debug('coroutine | end')
+                self.getLogger().debug('coroutine | finish put item into queue: %s' % item)
+            self.getLogger().debug('coroutine | wait for next item')
+        self.getLogger().debug('coroutine | end')
 
 
 class Pair:
@@ -112,7 +104,8 @@ class Pair:
                  downloaders: List[Downloader] = [],
                  time_delta: timedelta = timedelta(minutes=30),
                  feeder_concurrency: int = 3,
-                 downloader_concurrency: int = 3):
+                 downloader_concurrency: int = 3,
+                 logger: logging.Logger = None):
         self.__fcs: List[FeedController] = []
         self.__dcs: List[DownloadController] = []
         self.add_feeders(feeders)
@@ -127,9 +120,9 @@ class Pair:
 
         # 每个下载器都需要一个队列
         self.__queues: List[asyncio.Queue] = []
-
         self.__id: int = Pair.__ID
-        self.__logger = logging.getLogger("Pair %d" % self.__id)
+        if logger is None:
+            self.__logger = logging.getLogger("Pair %d" % self.__id)
         Pair.__ID += 1
 
     def add_feeder(self, feeder: Feeder):
@@ -196,7 +189,7 @@ class Pair:
                 self.__log_coroutine_once('end')
                 return
             except Exception:
-                logging.exception('Catch an Exception from Pair:')
+                self.__logger.exception('Catch an Exception from Pair:')
                 self.__log_coroutine_once('retry')
 
     async def coroutine_forever(self):
