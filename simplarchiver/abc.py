@@ -64,6 +64,11 @@ class FilterFeeder(Feeder):
         self.__base_feeder = base_feeder
         self.__filter = filter
 
+    def setTag(self, tag: str = None):
+        super().setTag(tag)
+        self.__base_feeder.setTag(tag)
+        self.__filter.setTag(tag)
+
     async def get_feeds(self):
         """带过滤的Feeder的Feed过程"""
         async for item in self.__base_feeder.get_feeds():
@@ -89,6 +94,10 @@ class AmplifierFeeder(Feeder):
         base_feeder.setTag(tag)
         self.__base_feeder = base_feeder
         self.__ampl_feeder_gen = ampl_feeder_gen
+
+    def setTag(self, tag: str = None):
+        super().setTag(tag)
+        self.__base_feeder.setTag(tag)
 
     async def get_feeds(self):
         async for item in self.__base_feeder.get_feeds():  # 获取基本Feeder里的item
@@ -118,6 +127,11 @@ class FilterDownloader(Downloader):
         base_downloader.setTag(tag)
         self.__base_downloader = base_downloader
         self.__filter = filter
+
+    def setTag(self, tag: str = None):
+        super().setTag(tag)
+        self.__base_downloader.setTag(tag)
+        self.__filter.setTag(tag)
 
     async def download(self, item):
         """带过滤的Downloader的Download过程"""
@@ -156,6 +170,11 @@ class CallbackDownloader(Downloader):
         self.__base_downloader = base_downloader
         self.__callback = callback
 
+    def setTag(self, tag: str = None):
+        super().setTag(tag)
+        self.__base_downloader.setTag(tag)
+        self.__callback.setTag(tag)
+
     async def download(self, item):
         return_code = await self.__base_downloader.download(item)
         self.getLogger().debug("return_code is: %s" % return_code)
@@ -183,6 +202,12 @@ class FilterCallbackDownloader(Downloader):
         self.__base_downloader = base_downloader
         self.__filter = filter
         self.__callback = callback
+
+    def setTag(self, tag: str = None):
+        super().setTag(tag)
+        self.__base_downloader.setTag(tag)
+        self.__filter.setTag(tag)
+        self.__callback.setTag(tag)
 
     async def download(self, item):
         """过滤+回调"""

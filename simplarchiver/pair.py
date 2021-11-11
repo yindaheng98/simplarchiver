@@ -1,18 +1,23 @@
-from .abc import *
-from typing import List
-from datetime import timedelta
 import asyncio
-import logging
+from datetime import timedelta
+from typing import List
+
+from .abc import *
 
 
 class DownloadController(Logger):
     """Download控制器"""
 
-    def __init__(self, downloader: Downloader, buffer_size=100):
-        super().__init__()
+    def __init__(self, downloader: Downloader, buffer_size=100, tag: str = None):
+        super().__init__(tag)
+        downloader.setTag(tag)
         self.__downloader: Downloader = downloader
         self.__buffer_size = buffer_size
         self.__queue: asyncio.Queue = None
+
+    def setTag(self, tag: str = None):
+        super().setTag(tag)
+        self.__downloader.setTag(tag)
 
     async def put(self, item):
         """将待下载的feed item入队列"""
@@ -55,9 +60,14 @@ class DownloadController(Logger):
 class FeedController(Logger):
     """Feed控制器"""
 
-    def __init__(self, feeder: Feeder):
-        super().__init__()
+    def __init__(self, feeder: Feeder, tag: str = None):
+        super().__init__(tag)
+        feeder.setTag(tag)
         self.__feeder: Feeder = feeder
+
+    def setTag(self, tag: str = None):
+        super().setTag(tag)
+        self.__feeder.setTag(tag)
 
     async def __get_feeds(self, sem: asyncio.Semaphore):
         """以固定并发数进行self.__feeder.get_feeds()"""
@@ -94,10 +104,8 @@ class FeedController(Logger):
         self.getLogger().debug('coroutine | end')
 
 
-class Pair:
+class Pair(Logger):
     """feeder-downloader对"""
-
-    __ID: int = 0
 
     def __init__(self,
                  feeders: List[Feeder] = [],
@@ -105,7 +113,9 @@ class Pair:
                  time_delta: timedelta = timedelta(minutes=30),
                  feeder_concurrency: int = 3,
                  downloader_concurrency: int = 3,
-                 logger: logging.Logger = None):
+                 tag: str = None):
+        super().__init__(tag)
+        self.__tag = tag
         self.__fcs: List[FeedController] = []
         self.__dcs: List[DownloadController] = []
         self.add_feeders(feeders)
@@ -120,22 +130,26 @@ class Pair:
 
         # 每个下载器都需要一个队列
         self.__queues: List[asyncio.Queue] = []
-        self.__id: int = Pair.__ID
-        if logger is None:
-            self.__logger = logging.getLogger("Pair %d" % self.__id)
-        Pair.__ID += 1
+
+    def setTag(self, tag: str = None):
+        super().setTag(tag)
+        self.__tag = tag
+        for fc in self.__fcs:
+            fc.setTag(tag)
+        for dc in self.__dcs:
+            dc.setTag(tag)
 
     def add_feeder(self, feeder: Feeder):
-        self.__fcs.append(FeedController(feeder))
+        self.__fcs.append(FeedController(feeder, tag=self.__tag))
 
     def add_feeders(self, feeders: List[Feeder]):
-        self.__fcs.extend([FeedController(feeder) for feeder in feeders])
+        self.__fcs.extend([FeedController(feeder, tag=self.__tag) for feeder in feeders])
 
     def add_downloader(self, downloader: Downloader):
-        self.__dcs.append(DownloadController(downloader))
+        self.__dcs.append(DownloadController(downloader, tag=self.__tag))
 
     def add_downloaders(self, downloaders: List[Downloader]):
-        self.__dcs.extend([DownloadController(downloader) for downloader in downloaders])
+        self.__dcs.extend([DownloadController(downloader, tag=self.__tag) for downloader in downloaders])
 
     def set_timedelta(self, timedelta: timedelta):
         self.__timedelta = timedelta
@@ -147,7 +161,7 @@ class Pair:
         self.__dc_concurrency = n
 
     def __log_coroutine_once(self, msg):
-        self.__logger.debug("coroutine_once | %s" % msg)
+        self.getLogger().debug("coroutine_once | %s" % msg)
 
     async def coroutine_once(self):
         """运行一次Feed&Download任务"""
@@ -189,12 +203,12 @@ class Pair:
                 self.__log_coroutine_once('end')
                 return
             except Exception:
-                self.__logger.exception('Catch an Exception from Pair:')
+                self.getLogger().exception('Catch an Exception from Pair:')
                 self.__log_coroutine_once('retry')
 
     async def coroutine_forever(self):
         await self.__coroutine_once_no_raise()
-        self.__logger.debug('sleep for %ss before next coroutine_once' % self.__timedelta.total_seconds())
+        self.getLogger().debug('sleep for %ss before next coroutine_once' % self.__timedelta.total_seconds())
         while await asyncio.sleep(self.__timedelta.total_seconds(), result=True):
             await self.__coroutine_once_no_raise()
-            self.__logger.debug('sleep for %ss before next coroutine_once' % self.__timedelta.total_seconds())
+            self.getLogger().debug('sleep for %ss before next coroutine_once' % self.__timedelta.total_seconds())
