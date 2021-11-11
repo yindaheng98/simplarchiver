@@ -5,7 +5,6 @@ import logging
 import asyncio
 
 logging.basicConfig(level=logging.DEBUG, format=' %(asctime)s | %(levelname)-8s | %(name)-26s | %(message)s')
-Logger.TagPadding = 30
 
 def log(msg):
     logging.info('test_Pair | %s' % msg)
