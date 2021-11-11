@@ -36,9 +36,6 @@ class RandomFeeder(Feeder):
 class RandomFilter(Filter):
     """一个随机过滤item的Feeder"""
 
-    def __init__(self):
-        super().__init__()
-
     async def filter(self, item):
         r = random.random()
         self.getLogger().info(

@@ -74,4 +74,4 @@ class ExtFilter(Filter):
 
 
 def ExtFilterFeeder(base_feeder: FileFeeder, extension: str):
-    return FilterFeeder(base_feeder, ExtFilter(extension))
+    return FilterFeeder(base_feeder, ExtFilter(extension), tag='ExtFilterFeeder')

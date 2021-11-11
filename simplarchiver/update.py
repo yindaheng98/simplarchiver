@@ -29,7 +29,12 @@ class UpdateFilter(Filter):
         update_rw用于指定如何写入和读取更新信息
         """
         super().__init__()
+        # update_rw.setTag(tag) # 继承自内置类Filter的类不需要在初始化时setTag
         self.__update_rw = update_rw
+
+    def setTag(self, tag: str = None):  # 继承自内置类Filter的类的Tag是在FilterFeeder或FilterDownloader初始化时setTag进去的
+        super().setTag(tag)
+        self.__update_rw.setTag(tag)
 
     async def filter(self, item):
         """过滤掉更新列表里已有记录且tag值相同的item"""
@@ -53,7 +58,12 @@ class UpdeteCallback(Callback):
         update_rw用于指定如何写入和读取更新信息
         """
         super().__init__()
+        # update_rw.setTag(tag) # 继承自内置类Filter的类不需要在初始化时setTag
         self.__update_rw = update_rw
+
+    def setTag(self, tag: str = None):  # 继承自内置类Filter的类的Tag是在FilterFeeder或FilterDownloader初始化时setTag进去的
+        super().setTag(tag)
+        self.__update_rw.setTag(tag)
 
     async def callback(self, item, return_code):
         """如果下载成功就刷新更新列表里对应的item的tag值"""

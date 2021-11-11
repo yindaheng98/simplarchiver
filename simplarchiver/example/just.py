@@ -29,9 +29,6 @@ class JustDownloader(Downloader):
 class JustLogCallback(Callback):
     """只是把Callback的内容输出到log而已"""
 
-    def __init__(self):
-        super().__init__()
-
     async def callback(self, item, return_code):
         self.getLogger().info(
             "JustLogCallbackDownloader run its callback, return_code: %s, item: %s" % (return_code, item))

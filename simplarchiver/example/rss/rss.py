@@ -116,9 +116,9 @@ class TTRSSClient(httpx.AsyncClient):
                 'user': self.__username,
                 'password': self.__password
             }))).json()
-            self.__logger.info('TTRSS API login response: %s' % data)
+            self.__logger.debug('TTRSS API login response: %s' % data)
             self.__sid = data['content']['session_id']
-            self.__logger.info('TTRSS API login successful, sid: %s' % self.__sid)
+            self.__logger.debug('TTRSS API login successful, sid: %s' % self.__sid)
         except Exception:
             self.__logger.exception('TTRSS API login failed, error: ')
         return self
@@ -129,8 +129,8 @@ class TTRSSClient(httpx.AsyncClient):
                 "sid": self.__sid,
                 "op": "logout"
             }))).json()
-            self.__logger.info('TTRSS API logout response: %s' % data)
-            self.__logger.info('TTRSS API logout successful, sid: %s' % self.__sid)
+            self.__logger.debug('TTRSS API logout response: %s' % data)
+            self.__logger.debug('TTRSS API logout successful, sid: %s' % self.__sid)
         except Exception:
             self.__logger.exception('TTRSS API logout failed, error: ')
         await super().__aexit__(*args, **kwargs)
@@ -223,19 +223,18 @@ class TTRSSHubLinkFilter(Filter):
 
 def TTRSSHubLinkFeeder(base_feeder: Feeder,
                        httpx_client_opt_generator: Callable[[], Dict] = default_httpx_client_opt_generator):
-    return FilterFeeder(base_feeder, TTRSSHubLinkFilter(httpx_client_opt_generator))
+    return FilterFeeder(base_feeder, TTRSSHubLinkFilter(httpx_client_opt_generator),
+                        tag='TTRSSHubLinkFeeder')
 
 
 def TTRSSHubLinkDownloader(base_downloader: Downloader,
                            httpx_client_opt_generator: Callable[[], Dict] = default_httpx_client_opt_generator):
-    return FilterDownloader(base_downloader, TTRSSHubLinkFilter(httpx_client_opt_generator))
+    return FilterDownloader(base_downloader, TTRSSHubLinkFilter(httpx_client_opt_generator),
+                            tag='TTRSSHubLinkDownloader')
 
 
 class EnclosureOnlyFilter(Filter):
     """筛掉没有Enclosure的，只要有Enclosure的"""
-
-    def __init__(self):
-        super().__init__()
 
     async def filter(self, item):
         if 'enclosure' in item:
@@ -247,14 +246,11 @@ class EnclosureOnlyFilter(Filter):
 
 
 def EnclosureOnlyDownloader(base_downloader: Downloader):
-    return FilterDownloader(base_downloader, EnclosureOnlyFilter())
+    return FilterDownloader(base_downloader, EnclosureOnlyFilter(), tag='EnclosureOnlyDownloader')
 
 
 class EnclosureExceptFilter(Filter):
     """筛掉有Enclosure的，只要没有Enclosure的"""
-
-    def __init__(self):
-        super().__init__()
 
     async def filter(self, item):
         if 'enclosure' in item:
@@ -266,4 +262,4 @@ class EnclosureExceptFilter(Filter):
 
 
 def EnclosureExceptDownloader(base_downloader: Downloader):
-    return FilterDownloader(base_downloader, EnclosureOnlyFilter())
+    return FilterDownloader(base_downloader, EnclosureOnlyFilter(), tag='EnclosureExceptDownloader')
