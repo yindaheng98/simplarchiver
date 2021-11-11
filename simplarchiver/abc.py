@@ -9,11 +9,9 @@ class Logger:
     __TagPadding = 0
     __ClassnamePadding = 0
 
-    def __init__(self, tag: str = None):
-        self.__tag = tag
-        if self.__tag is None:
-            self.__tag = "Untagged Class %d" % Logger.__ID
-            Logger.__ID += 1
+    def __init__(self):
+        self.__tag = "Untagged Class %d" % Logger.__ID
+        Logger.__ID += 1
 
     def getLogger(self):
         self.__update_padding()
@@ -63,11 +61,9 @@ class Filter(Logger, metaclass=abc.ABCMeta):
 class FilterFeeder(Feeder):
     """带过滤功能的Feeder"""
 
-    def __init__(self, base_feeder: Feeder, filter: Filter, tag: str = None):
+    def __init__(self, base_feeder: Feeder, filter: Filter):
         """从一个基本的Feeder生成带过滤的Feeder"""
-        super().__init__(tag)
-        base_feeder.setTag(tag)
-        filter.setTag(tag)
+        super().__init__()
         self.__base_feeder = base_feeder
         self.__filter = filter
 
@@ -95,10 +91,9 @@ class FilterFeeder(Feeder):
 class AmplifierFeeder(Feeder):
     """基于一个Feeder生成的item生成多个Feeder进而生成多个item"""
 
-    def __init__(self, base_feeder: Feeder, ampl_feeder_gen: Callable[[Any], Feeder], tag: str = None):
+    def __init__(self, base_feeder: Feeder, ampl_feeder_gen: Callable[[Any], Feeder]):
         """从一个基本的Feeder和一个放大器Feeder生成器生成带过滤的Feeder"""
-        super().__init__(tag)
-        base_feeder.setTag(tag)
+        super().__init__()
         self.__base_feeder = base_feeder
         self.__ampl_feeder_gen = ampl_feeder_gen
 
@@ -128,11 +123,9 @@ class AmplifierFeeder(Feeder):
 class FilterDownloader(Downloader):
     """带过滤功能的Downloader"""
 
-    def __init__(self, base_downloader: Downloader, filter: Filter, tag: str = None):
+    def __init__(self, base_downloader: Downloader, filter: Filter):
         """从一个基本的Downloader生成带过滤的Downloader"""
-        super().__init__(tag)
-        base_downloader.setTag(tag)
-        filter.setTag(tag)
+        super().__init__()
         self.__base_downloader = base_downloader
         self.__filter = filter
 
@@ -170,11 +163,9 @@ class Callback(Logger, metaclass=abc.ABCMeta):
 class CallbackDownloader(Downloader):
     """具有回调功能的Downloader"""
 
-    def __init__(self, base_downloader: Downloader, callback: Callback, tag: str = None):
+    def __init__(self, base_downloader: Downloader, callback: Callback):
         """从一个基本的Downloader生成具有回调功能Downloader"""
-        super().__init__(tag)
-        base_downloader.setTag(tag)
-        callback.setTag(tag)
+        super().__init__()
         self.__base_downloader = base_downloader
         self.__callback = callback
 
@@ -201,12 +192,9 @@ class CallbackDownloader(Downloader):
 class FilterCallbackDownloader(Downloader):
     """同时具有过滤和回调功能的Downloader"""
 
-    def __init__(self, base_downloader: Downloader, filter: Filter, callback: Callback, tag: str = None):
+    def __init__(self, base_downloader: Downloader, filter: Filter, callback: Callback):
         """从一个基本的Downloader生成具有过滤和回调功能Downloader"""
-        super().__init__(tag)
-        base_downloader.setTag(tag)
-        filter.setTag(tag)
-        callback.setTag(tag)
+        super().__init__()
         self.__base_downloader = base_downloader
         self.__filter = filter
         self.__callback = callback

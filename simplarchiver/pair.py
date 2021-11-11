@@ -8,9 +8,8 @@ from .abc import *
 class DownloadController(Logger):
     """Download控制器"""
 
-    def __init__(self, downloader: Downloader, buffer_size=100, tag: str = None):
-        super().__init__(tag)
-        downloader.setTag(tag)
+    def __init__(self, downloader: Downloader, buffer_size=100):
+        super().__init__()
         self.__downloader: Downloader = downloader
         self.__buffer_size = buffer_size
         self.__queue: asyncio.Queue = None
@@ -60,9 +59,8 @@ class DownloadController(Logger):
 class FeedController(Logger):
     """Feed控制器"""
 
-    def __init__(self, feeder: Feeder, tag: str = None):
-        super().__init__(tag)
-        feeder.setTag(tag)
+    def __init__(self, feeder: Feeder):
+        super().__init__()
         self.__feeder: Feeder = feeder
 
     def setTag(self, tag: str = None):
@@ -112,10 +110,9 @@ class Pair(Logger):
                  downloaders: List[Downloader] = [],
                  time_delta: timedelta = timedelta(minutes=30),
                  feeder_concurrency: int = 3,
-                 downloader_concurrency: int = 3,
-                 tag: str = None):
-        super().__init__(tag)
-        self.__tag = tag
+                 downloader_concurrency: int = 3):
+        super().__init__()
+        self.__tag = None
         self.__fcs: List[FeedController] = []
         self.__dcs: List[DownloadController] = []
         self.add_feeders(feeders)
@@ -140,16 +137,20 @@ class Pair(Logger):
             dc.setTag(tag)
 
     def add_feeder(self, feeder: Feeder):
-        self.__fcs.append(FeedController(feeder, tag=self.__tag))
+        self.__fcs.append(FeedController(feeder))
+        self.setTag(self.__tag)
 
     def add_feeders(self, feeders: List[Feeder]):
-        self.__fcs.extend([FeedController(feeder, tag=self.__tag) for feeder in feeders])
+        self.__fcs.extend([FeedController(feeder) for feeder in feeders])
+        self.setTag(self.__tag)
 
     def add_downloader(self, downloader: Downloader):
-        self.__dcs.append(DownloadController(downloader, tag=self.__tag))
+        self.__dcs.append(DownloadController(downloader))
+        self.setTag(self.__tag)
 
     def add_downloaders(self, downloaders: List[Downloader]):
-        self.__dcs.extend([DownloadController(downloader, tag=self.__tag) for downloader in downloaders])
+        self.__dcs.extend([DownloadController(downloader) for downloader in downloaders])
+        self.setTag(self.__tag)
 
     def set_timedelta(self, timedelta: timedelta):
         self.__timedelta = timedelta

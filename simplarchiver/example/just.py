@@ -35,4 +35,6 @@ class JustLogCallback(Callback):
 
 
 def JustLogCallbackDownloader(base_downloader: Downloader):
-    return CallbackDownloader(base_downloader, JustLogCallback(), 'JustLogCallbackDownloader')
+    f = CallbackDownloader(base_downloader, JustLogCallback())
+    f.setTag('JustLogCallbackDownloader')
+    return f

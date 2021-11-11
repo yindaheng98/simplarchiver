@@ -81,4 +81,6 @@ class UpdeteCallback(Callback):
 
 
 def UpdateDownloader(base_downloader: Downloader, update_rw: UpdateRW, tag: str = 'UpdateDownloader'):
-    return FilterCallbackDownloader(base_downloader, UpdateFilter(update_rw), UpdeteCallback(update_rw), tag)
+    f = FilterCallbackDownloader(base_downloader, UpdateFilter(update_rw), UpdeteCallback(update_rw))
+    f.setTag('UpdateDownloader')
+    return f
