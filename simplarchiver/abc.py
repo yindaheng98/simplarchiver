@@ -6,7 +6,8 @@ from typing import Callable, Any
 class Logger:
     """用于记录日志的统一接口"""
     __ID: int = 0
-    TagPadding = 20
+    __TagPadding = 0
+    __ClassnamePadding = 0
 
     def __init__(self, tag: str = None):
         self.__tag = tag
@@ -15,11 +16,17 @@ class Logger:
             Logger.__ID += 1
 
     def getLogger(self):
-        return logging.getLogger(("%%-%ds | %%s" % Logger.TagPadding) % (self.__tag, self.__class__.__name__))
+        self.__update_padding()
+        return logging.getLogger(("%%-%ds | %%-%ds" % (Logger.__TagPadding, Logger.__ClassnamePadding)
+                                  ) % (self.__tag, self.__class__.__name__))
 
     def setTag(self, tag):
         if tag is not None:
             self.__tag = tag
+
+    def __update_padding(self):
+        Logger.__TagPadding = max(Logger.__TagPadding, len(self.__tag))
+        Logger.__ClassnamePadding = max(Logger.__ClassnamePadding, len(self.__class__.__name__))
 
 
 class Feeder(Logger, metaclass=abc.ABCMeta):
