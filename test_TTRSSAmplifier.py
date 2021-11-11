@@ -3,7 +3,7 @@ import logging
 from datetime import timedelta
 
 from simplarchiver import Pair, AmplifierFeeder
-from simplarchiver.example import JustDownloader, ExceptionFeederFilter
+from simplarchiver.example import JustDownloader, ExceptionFilterFeeder
 from simplarchiver.example.rss import TTRSSCatFeeder, RSSHubFeeder
 from test_secret import ttrss_amp_data as ttrss
 
@@ -15,12 +15,12 @@ def log(msg):
 
 
 def ampl_feeder_gen(item):
-    return ExceptionFeederFilter(RSSHubFeeder(item['link']), rate=0.2)
+    return ExceptionFilterFeeder(RSSHubFeeder(item['link']), rate=0.2)
 
 
 ttrss_amp_feeders = [
     AmplifierFeeder(
-        ExceptionFeederFilter(
+        ExceptionFilterFeeder(
             TTRSSCatFeeder(
                 cat_id=ttrss['cat_id'],
                 url=ttrss['url'],

@@ -47,8 +47,8 @@ class RandomFilter(Filter):
 
 
 def RandomFilterFeeder(base_feeder: Feeder):
-    return FilterFeeder(base_feeder, RandomFilter())
+    return FilterFeeder(base_feeder, RandomFilter(), 'RandomFilterFeeder')
 
 
 def RandomFilterDownloader(base_downloader: Downloader):
-    return FilterDownloader(base_downloader, RandomFilter())
+    return FilterDownloader(base_downloader, RandomFilter(), 'RandomFilterDownloader')

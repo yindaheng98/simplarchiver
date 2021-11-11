@@ -28,12 +28,12 @@ class ExceptionFilter(Filter):
         self.getLogger().info('Initialized: rate=%f' % rate)
 
 
-def ExceptionFeederFilter(base_feeder: Feeder, i=uuid.uuid4(), rate=0.5):
-    return FilterFeeder(base_feeder, ExceptionFilter(i, rate))
+def ExceptionFilterFeeder(base_feeder: Feeder, i=uuid.uuid4(), rate=0.5):
+    return FilterFeeder(base_feeder, ExceptionFilter(i, rate), 'ExceptionFeederFilter')
 
 
-def ExceptionDownloaderFilter(base_downloader: Downloader, i=uuid.uuid4(), rate=0.5):
-    return FilterDownloader(base_downloader, ExceptionFilter(i, rate))
+def ExceptionFilterDownloader(base_downloader: Downloader, i=uuid.uuid4(), rate=0.5):
+    return FilterDownloader(base_downloader, ExceptionFilter(i, rate), 'ExceptionDownloaderFilter')
 
 
 class ExceptionCallback(Callback):
@@ -58,9 +58,10 @@ class ExceptionCallback(Callback):
         self.getLogger().info('Initialized: rate=%f' % rate)
 
 
-def ExceptionDownloaderCallback(base_downloader: Downloader, i=uuid.uuid4(), rate=0.5):
-    return CallbackDownloader(base_downloader, ExceptionCallback(i, rate))
+def ExceptionCallbackDownloader(base_downloader: Downloader, i=uuid.uuid4(), rate=0.5):
+    return CallbackDownloader(base_downloader, ExceptionCallback(i, rate), 'ExceptionCallbackDownloader')
 
 
-def ExceptionDownloaderFilterCallback(base_downloader: Downloader, i=uuid.uuid4(), rate=0.5):
-    return FilterCallbackDownloader(base_downloader, ExceptionFilter(i, rate), ExceptionCallback(i, rate))
+def ExceptionFilterCallbackDownloader(base_downloader: Downloader, i=uuid.uuid4(), rate=0.5):
+    return FilterCallbackDownloader(base_downloader, ExceptionFilter(i, rate),
+                                    ExceptionCallback(i, rate), 'ExceptionFilterCallbackDownloader')

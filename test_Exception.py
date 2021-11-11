@@ -1,24 +1,24 @@
-from simplarchiver import Pair
+from simplarchiver import Pair, Logger
 from simplarchiver.example import *
 from datetime import timedelta
 import logging
 import asyncio
 
 logging.basicConfig(level=logging.DEBUG, format=' %(asctime)s | %(levelname)-8s | %(name)-26s | %(message)s')
-
+Logger.TagPadding = 30
 
 def log(msg):
     logging.info('test_Pair | %s' % msg)
 
 
 def TestSleepFeeder(i):
-    return ExceptionFeederFilter(SleepFeeder(i), rate=0.2)
+    return ExceptionFilterFeeder(SleepFeeder(i), rate=0.2)
 
 
 def TestSleepDownloader(i):
-    return ExceptionDownloaderFilter(
-        ExceptionDownloaderCallback(
-            ExceptionDownloaderFilterCallback(
+    return ExceptionFilterDownloader(
+        ExceptionCallbackDownloader(
+            ExceptionFilterCallbackDownloader(
                 SleepDownloader(i),
                 rate=0.2),
             rate=0.2),
@@ -31,7 +31,9 @@ for i in range(1, 4):
 pair.add_feeders([RandomFilterFeeder(TestSleepFeeder(i)) for i in range(4, 7)])
 for i in range(1, 4):
     pair.add_downloader(TestSleepDownloader(i))
+pair.setTag('Tag after add')
 pair.add_downloaders([RandomFilterDownloader(TestSleepDownloader(i)) for i in range(4, 7)])
+pair.setTag(None)
 pair.add_downloaders([JustLogCallbackDownloader(TestSleepDownloader(i)) for i in range(7, 10)])
 log("pair.coroutine_once()")
 asyncio.run(pair.coroutine_once())
