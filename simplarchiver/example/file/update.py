@@ -87,8 +87,9 @@ def CentralizedUpdateDownloader(
         base_downloader: Downloader,
         update_list_path: str,
         update_list_pair_gen: Callable[[Any], Tuple[str, str]]):
-    return UpdateDownloader(
+    f = UpdateDownloader(
         base_downloader,
-        UpdateListRW(update_list_path, update_list_pair_gen),
-        tag='CentralizedUpdateDownloader'
+        UpdateListRW(update_list_path, update_list_pair_gen)
     )
+    f.setTag('CentralizedUpdateDownloader')
+    return f

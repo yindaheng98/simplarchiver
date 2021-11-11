@@ -80,7 +80,7 @@ class UpdeteCallback(Callback):
             self.getLogger().info('Downloader exit %s, update will not be writen: %s' % (return_code, item))
 
 
-def UpdateDownloader(base_downloader: Downloader, update_rw: UpdateRW, tag: str = 'UpdateDownloader'):
+def UpdateDownloader(base_downloader: Downloader, update_rw: UpdateRW):
     f = FilterCallbackDownloader(base_downloader, UpdateFilter(update_rw), UpdeteCallback(update_rw))
     f.setTag('UpdateDownloader')
     return f

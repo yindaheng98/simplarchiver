@@ -223,14 +223,16 @@ class TTRSSHubLinkFilter(Filter):
 
 def TTRSSHubLinkFeeder(base_feeder: Feeder,
                        httpx_client_opt_generator: Callable[[], Dict] = default_httpx_client_opt_generator):
-    return FilterFeeder(base_feeder, TTRSSHubLinkFilter(httpx_client_opt_generator),
-                        tag='TTRSSHubLinkFeeder')
+    f = FilterFeeder(base_feeder, TTRSSHubLinkFilter(httpx_client_opt_generator))
+    f.setTag('TTRSSHubLinkFeeder')
+    return f
 
 
 def TTRSSHubLinkDownloader(base_downloader: Downloader,
                            httpx_client_opt_generator: Callable[[], Dict] = default_httpx_client_opt_generator):
-    return FilterDownloader(base_downloader, TTRSSHubLinkFilter(httpx_client_opt_generator),
-                            tag='TTRSSHubLinkDownloader')
+    f = FilterDownloader(base_downloader, TTRSSHubLinkFilter(httpx_client_opt_generator))
+    f.setTag('TTRSSHubLinkDownloader')
+    return f
 
 
 class EnclosureOnlyFilter(Filter):
@@ -246,7 +248,9 @@ class EnclosureOnlyFilter(Filter):
 
 
 def EnclosureOnlyDownloader(base_downloader: Downloader):
-    return FilterDownloader(base_downloader, EnclosureOnlyFilter(), tag='EnclosureOnlyDownloader')
+    f = FilterDownloader(base_downloader, EnclosureOnlyFilter())
+    f.setTag('EnclosureOnlyDownloader')
+    return f
 
 
 class EnclosureExceptFilter(Filter):
@@ -262,4 +266,6 @@ class EnclosureExceptFilter(Filter):
 
 
 def EnclosureExceptDownloader(base_downloader: Downloader):
-    return FilterDownloader(base_downloader, EnclosureOnlyFilter(), tag='EnclosureExceptDownloader')
+    f = FilterDownloader(base_downloader, EnclosureOnlyFilter())
+    f.setTag('EnclosureExceptDownloader')
+    return f

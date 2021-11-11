@@ -33,13 +33,13 @@ subprocess_downloaders = [
     CentralizedUpdateDownloader(
         base_downloader=SubprocessDownloader(lambda x: 'ping 127.0.0.1', 'gbk'),
         update_list_path="./test.json",
-        update_list_pair_gen=lambda i: (i['link'], i['pubDate']) if 'link' in i and 'pubDate' in i else (None, None),
-        logger=logging.getLogger("test_UpdateDownloader")
+        update_list_pair_gen=lambda i: (i['link'], i['pubDate']) if 'link' in i and 'pubDate' in i else (None, None)
     )
 ]
 
 pair = Pair(ttrss_feeders,
             just_downloaders + subprocess_downloaders,
             timedelta(seconds=5), 4, 8)
+pair.setTag("test_UpdateDownloader")
 log("pair.coroutine_once()")
 asyncio.run(pair.coroutine_once())
