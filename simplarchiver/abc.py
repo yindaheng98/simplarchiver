@@ -18,7 +18,7 @@ class Logger:
         return logging.getLogger(("%%-%ds | %%s" % Logger.TagPadding) % (self.__tag, self.__class__.__name__))
 
     def setTag(self, tag):
-        if self.__tag is not None:
+        if tag is not None:
             self.__tag = tag
 
 
