@@ -132,6 +132,7 @@ class FilterDownloader(Downloader):
         """从一个基本的Downloader生成带过滤的Downloader"""
         super().__init__(tag)
         base_downloader.setTag(tag)
+        filter.setTag(tag)
         self.__base_downloader = base_downloader
         self.__filter = filter
 
