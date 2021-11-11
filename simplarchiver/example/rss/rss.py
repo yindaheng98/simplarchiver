@@ -183,7 +183,7 @@ class TTRSSCatFeeder(Feeder):
                     "view_mode": "all_articles",
                     "order_by": "feed_dates"
                 })
-                i = {'recent': content[0]['link'], 'link': feed['feed_url']}
+                i = {'recent_link': content[0]['link'], 'feed_url': feed['feed_url']}
                 self.getLogger().info("yield an item: %s" % json.dumps(i))
                 yield i
 
@@ -208,16 +208,16 @@ class TTRSSHubLinkFilter(Filter):
         实际上就是根据TTRSS返回的item["link"]获取RSS Feed里面的link标签内容，以此替换item["link"]
         专为TTRSSHubLinkFeeder和TTRSSHubLinkDownloader设计
         """
-        rss_link = item["link"]
-        self.getLogger().info("getting the original link of %s" % rss_link)
+        feed_url = item["feed_url"]
+        self.getLogger().info("getting the original link of %s" % feed_url)
         async with httpx.AsyncClient(**self.httpx_client_opt_generator()) as client:
-            response = await client.get(rss_link)
+            response = await client.get(feed_url)
             root = ElementTree.XML(response.content)
             channel = root.find('channel')
             link = channel.find('link').text
             item["link"] = link
             item['pubDate'] = list(root.iter('item'))[0].find('pubDate').text
-        self.getLogger().info("got the original link of %s: %s" % (rss_link, item["link"]))
+        self.getLogger().info("got the original link of %s: %s" % (feed_url, item["link"]))
         return item
 
 

@@ -33,7 +33,8 @@ subprocess_downloaders = [
             SubprocessDownloader(lambda x: 'ping 127.0.0.1', 'gbk')
         ),
         update_list_path="./test.json",
-        update_list_pair_gen=lambda i: (i['link'], i['recent']) if 'link' in i and 'recent' in i else (None, None)
+        update_list_pair_gen=
+        lambda i: (i['feed_url'], i['recent_link']) if 'feed_url' in i and 'recent_link' in i else (None, None)
     )
 ]
 
