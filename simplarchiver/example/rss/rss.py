@@ -1,8 +1,8 @@
 import asyncio
 import json
 import logging
-from xml.etree import ElementTree
 from typing import Dict, Callable
+from xml.etree import ElementTree
 
 import httpx
 
@@ -77,14 +77,14 @@ class RSSHubMultiPageFeeder(Feeder):
         for page in range(0, self.__max_pages):
             url = self.__url_gen(page)
             rf = RSSHubFeeder(url)
+            rf.setTag("Temp Feeder")
             rf.httpx_client_opt = self.httpx_client_opt_generator
             self.getLogger().info("got page %d: %s" % (page, url))
-            rfn = 0  # 计数
-            async for item in rf.get_feeds():
-                rfn += 1
-                yield item
-            if rfn <= 0:
-                return  # 计数，如果一个item都没有返回说明是最后一页，可以退出
+            try:
+                async for item in rf.get_feeds():
+                    yield item
+            except Exception:
+                self.getLogger().exception("Catch an Exception from Temp Feeder:")
 
 
 class TTRSSClient(httpx.AsyncClient):
