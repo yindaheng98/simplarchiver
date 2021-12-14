@@ -8,12 +8,7 @@ import httpx
 
 from simplarchiver import Feeder, Filter, FilterFeeder, FilterDownloader, Downloader
 
-
-def default_httpx_client_opt_generator():
-    return {
-        'timeout': httpx.Timeout(10.0),
-        'transport': httpx.AsyncHTTPTransport(retries=5)
-    }
+from .common import default_httpx_client_opt_generator
 
 
 class RSSHubFeeder(Feeder):
