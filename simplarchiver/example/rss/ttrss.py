@@ -1,6 +1,7 @@
 import asyncio
 import json
 import logging
+from datetime import datetime
 from typing import Dict, Callable
 
 import httpx
@@ -32,6 +33,10 @@ class TTRSSGenFeeder(Feeder):
             data = json.loads(response.text)
             self.getLogger().debug("got GeneratedFeeds json: %s" % data)
             for article in data['articles']:
+                article['pubDate'] = 'Invalid'
+                if 'updated' in article:
+                    pubDate = datetime.strptime(article['updated'], "%Y-%m-%dT%H:%M:%S%z")
+                    article['pubDate'] = datetime.strftime(pubDate, "%a, %d %b %Y %H:%M:%S GMT")
                 yield article
 
 

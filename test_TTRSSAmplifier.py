@@ -15,7 +15,7 @@ def log(msg):
 
 
 def ampl_feeder_gen(item):
-    return ExceptionFilterFeeder(RSSHubFeeder(item['link']), rate=0.2)
+    return ExceptionFilterFeeder(RSSHubFeeder(item['feed_url']), rate=0.2)
 
 
 ttrss_amp_feeders = [
