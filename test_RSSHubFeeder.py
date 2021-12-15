@@ -27,6 +27,10 @@ rsshub_feeders = [RSSHubFeeder(
 
 rsshub_multipage_feeders = [RSSHubMultiPageFeeder(
     url_gen=rsshub['url_gen'], max_pages=rsshub['max_pages'],
+    httpx_client_opt_generator=lambda: {
+        'timeout': httpx.Timeout(1),
+        'transport': httpx.AsyncHTTPTransport(retries=1)
+    }
 ) for rsshub in rsshub_multipage_data]
 
 just_downloaders = [JustDownloader(i) for i in range(1, 4)]
@@ -36,5 +40,6 @@ ee_downloaders = [EnclosureExceptDownloader(base_downloader=JustDownloader(i)) f
 pair = Pair(rsshub_feeders + rsshub_multipage_feeders,
             just_downloaders + eo_downloaders + ee_downloaders,
             timedelta(seconds=5), 4, 8)
+pair.setTag('test_Pair')
 log("pair.coroutine_once()")
 asyncio.run(pair.coroutine_once())

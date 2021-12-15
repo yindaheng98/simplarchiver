@@ -64,13 +64,17 @@ class RSSHubMultiPageFeeder(Feeder):
         self.__url_gen = url_gen
         self.__max_pages = max_pages
         self.httpx_client_opt_generator = httpx_client_opt_generator
+        self.__tag_for_feeder = "Temp Feeder"
+
+    def setTag(self, tag):
+        super().setTag(tag)
+        self.__tag_for_feeder = tag
 
     async def get_feeds(self):
         for page in range(0, self.__max_pages):
             url = self.__url_gen(page)
-            rf = RSSHubFeeder(url)
-            rf.setTag("Temp Feeder")
-            rf.httpx_client_opt = self.httpx_client_opt_generator
+            rf = RSSHubFeeder(url, self.httpx_client_opt_generator)
+            rf.setTag(self.__tag_for_feeder)
             self.getLogger().info("got page %d: %s" % (page, url))
             try:
                 async for item in rf.get_feeds():
