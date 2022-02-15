@@ -35,6 +35,6 @@ just_downloaders = [JustDownloader(i) for i in range(1, 4)]
 
 pair = Pair(ttrss_amp_feeders,
             just_downloaders,
-            timedelta(seconds=5), 4, 8)
+            timedelta(seconds=1), timedelta(seconds=5), 4, 8)
 log("pair.coroutine_once()")
 asyncio.run(pair.coroutine_once())

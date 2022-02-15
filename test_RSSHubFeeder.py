@@ -39,7 +39,7 @@ ee_downloaders = [EnclosureExceptDownloader(base_downloader=JustDownloader(i)) f
 
 pair = Pair(rsshub_feeders + rsshub_multipage_feeders,
             just_downloaders + eo_downloaders + ee_downloaders,
-            timedelta(seconds=5), 4, 8)
+            timedelta(seconds=1), timedelta(seconds=5), 4, 8)
 pair.setTag('test_Pair')
 log("pair.coroutine_once()")
 asyncio.run(pair.coroutine_once())

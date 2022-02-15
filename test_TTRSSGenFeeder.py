@@ -36,7 +36,7 @@ subprocess_downloaders = [
 
 pair = Pair(ttrss_feeders,
             just_downloaders + subprocess_downloaders,
-            timedelta(seconds=5), 4, 8)
+            timedelta(seconds=1), timedelta(seconds=5), 4, 8)
 pair.setTag("test_UpdateDownloader")
 log("pair.coroutine_once()")
 asyncio.run(pair.coroutine_once())

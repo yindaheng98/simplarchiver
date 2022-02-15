@@ -36,9 +36,9 @@ def QBItemFilterDownloader(base_downloader: Downloader):
 
 
 just_downloaders = [QBItemFilterDownloader(JustDownloader(i)) for i in range(1, 4)]
-just_downloaders = [QBItemFilterDownloader(QBittorrentDownloader(**qb_data['opt']))]
+# just_downloaders = [QBItemFilterDownloader(QBittorrentDownloader(**qb_data['opt']))]
 pair = Pair(ttrss_feeders,
             just_downloaders,
-            timedelta(seconds=5), 4, 8)
+            timedelta(seconds=2), timedelta(seconds=5), 4, 8)
 logging.info('pair.coroutine_once()')
 asyncio.run(pair.coroutine_once())

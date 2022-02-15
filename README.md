@@ -167,7 +167,8 @@ class Pair:
     def __init__(self,
                  feeders: List[Feeder] = [],
                  downloaders: List[Downloader] = [],
-                 time_delta: timedelta = timedelta(minutes=30),
+                 start_deny: timedelta = timedelta(seconds=4),
+                 interval: timedelta = timedelta(minutes=30),
                  feeder_concurrency: int = 3,
                  downloader_concurrency: int = 3):
         ...
@@ -184,9 +185,14 @@ class Pair:
 | ------------------------ | ------------------------------------------------------------------------------ |
 | `feeders`                | 由`simplarchiver.Feeder`构成的列表，用户在此处输入自己定义的Feeder             |
 | `downloaders`            | 由`simplarchiver.Downloader`构成的列表，用户在此处输入自己定义的Downloader     |
-| `time_delta`             | 在`coroutine_forever`函数中当一轮下载全部完成后，sleep多长时间再开始下一轮下载 |
-| `feeder_concurrency`     | 同一时刻最多可以并发运行多少个`simplarchiver.Feeder.get_feeds().__anext__()`   |
-| `downloader_concurrency` | 同一时刻最多可以并发运行多少个`simplarchiver.Downloader.download()`            |
+| `start_deny`             | sleep多长时间后启动第一轮下载 |
+| `interval`               | 在`coroutine_forever`函数中当一轮下载全部完成后，sleep多长时间再开始下一轮下载 |
+| `feeder_concurrency`     | `feeders`所输入的`Feeder`最多可以同时运行多少个   |
+| `downloader_concurrency` | `downloaders`所输入的`Downloader`最多可以同时运行多少个            |
+
+注意：一个`Downloader`实例的`simplarchiver.Downloader.download()`不会被并行调用，所以如果设置了`downloader_concurrency`大于`downloaders`列表的长度，同一时刻最多也只会有`len(downloaders)`个`simplarchiver.Downloader.download()`并行调用，每个`Downloader`实例最多有一个`simplarchiver.Downloader.download()`在运行
+
+TODO：未来可能会改变`downloader_concurrency`的实现方式，让一个`Downloader`实例可以并行运行多个`simplarchiver.Downloader.download()`过程，使`downloader_concurrency`控制同一时刻最多可以并发运行多少个`simplarchiver.Downloader.download()`
 
 两个主要协程的运行过程为：
 
@@ -201,7 +207,7 @@ class Pair:
 `coroutine_forever`，永久运行：
 1. 运行`coroutine_once`协程并等待其完成
 2. 如果`coroutine_once`抛出了错误，则忽略错误并立即回到步骤1
-3. 如果`coroutine_once`正常退出，则等待`time_delta`时长后再回到步骤1
+3. 如果`coroutine_once`正常退出，则等待`interval`时长后再回到步骤1
 
 除了构造函数之外，协程开始前还可以使用这些方法修改设置：
 
@@ -238,7 +244,7 @@ from simplarchiver import Pair
 from simplarchiver.example import SleepFeeder, SleepDownloader
 from datetime import timedelta
 
-pair = Pair([SleepFeeder(0)], [SleepDownloader(0)], timedelta(seconds=5), 3, 4)
+pair = Pair([SleepFeeder(0)], [SleepDownloader(0)], timedelta(seconds=1), timedelta(seconds=5), 3, 4)
 for i in range(1, 4):
     pair.add_feeder(SleepFeeder(i))
 for i in range(1, 4):
@@ -299,7 +305,7 @@ for i in range(1, 4):
     controller.add_pair(
         Pair([RandomFeeder('(%d,%d)' % (i, j)) for j in range(1, 4)],
              [JustDownloader('(%d,%d)' % (i, j)) for j in range(1, 4)],
-             timedelta(seconds=i * 5), i, i))
+             timedelta(seconds=i * 1), timedelta(seconds=i * 5), i, i))
 asyncio.run(controller.coroutine())
 ```
 
@@ -366,7 +372,7 @@ pair = Pair([
     RandomFilterFeeder(
         SleepFeeder(0)
     )
-], [SleepDownloader(0)], timedelta(seconds=5), 4, 4)
+], [SleepDownloader(0)], timedelta(seconds=1), timedelta(seconds=5), 4, 4)
 ```
 
 因为Feed过滤器也是继承自`simplarchiver.Feeder`，所以它天生就是可以嵌套的。例如我要随机删除某个Feeder四分之三的输出Item，那就嵌套一下：
@@ -377,7 +383,7 @@ pair = Pair([
             SleepFeeder(0)
         )
     )
-], [SleepDownloader(0)], timedelta(seconds=5), 4, 4)
+], [SleepDownloader(0)], timedelta(seconds=1), timedelta(seconds=5), 4, 4)
 ```
 
 更多案例：
@@ -435,7 +441,7 @@ pair = Pair([SleepFeeder(0)], [
     RandomFilterDownloader(
         SleepDownloader(0)
     )
-], timedelta(seconds=5), 4, 4)
+], timedelta(seconds=1), timedelta(seconds=5), 4, 4)
 ```
 
 同样，Download过滤器也是可以嵌套的。和上面的Feed过滤器的嵌套案例一样，我要让某个Downloader随机跳过四分之三的输入Item，那就嵌套一下：
@@ -446,7 +452,7 @@ pair = Pair([SleepFeeder(0)], [
             SleepDownloader(0)
         )
     )
-], timedelta(seconds=5), 4, 4)
+], timedelta(seconds=1), timedelta(seconds=5), 4, 4)
 ```
 
 更多案例：
@@ -540,7 +546,7 @@ pair = Pair([SleepFeeder(0)], [
     JustLogCallbackDownloader(
         SleepDownloader(0)
     )
-], timedelta(seconds=5), 4, 4)
+], timedelta(seconds=1), timedelta(seconds=5), 4, 4)
 ```
 
 Download回调自然也是可以嵌套的：
@@ -551,7 +557,7 @@ pair = Pair([SleepFeeder(0)], [
             SleepDownloader(0)
         )
     )
-], timedelta(seconds=5), 4, 4)
+], timedelta(seconds=1), timedelta(seconds=5), 4, 4)
 ```
 
 但要注意，嵌套之后，外层的回调函数获取到的`return_code`值来自于内层回调函数的返回值，而获取到的Item来自于外层的输入。
@@ -569,7 +575,7 @@ pair = Pair([SleepFeeder(0)], [
             SleepDownloader(0)
         )
     )
-], timedelta(seconds=5), 4, 4)
+], timedelta(seconds=1), timedelta(seconds=5), 4, 4)
 ```
 
 回调函数在外、过滤器在内时，过滤器的`download`在回调的`download`内调用，因此`callback`收到的是没有经过过滤的Item，且由于过滤器的`download`在要被过滤的Item处是直接退出的，所以在被过滤的Item处，`callback`收到的`return_code`值为`None`：
@@ -581,7 +587,7 @@ pair = Pair([SleepFeeder(0)], [
             SleepDownloader(0)
         )
     )
-], timedelta(seconds=5), 4, 4)
+], timedelta(seconds=1), timedelta(seconds=5), 4, 4)
 ```
 
 从逻辑上看，我们不需要对一个没有经过下载的Item调用回调，其`return_code`值也没有意义，在此系统中还容易和正常退出的`return_code`混淆。所以过滤器在外，回调函数在内的用法才是逻辑上正确的用法。

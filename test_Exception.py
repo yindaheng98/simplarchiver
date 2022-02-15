@@ -24,7 +24,7 @@ def TestSleepDownloader(i):
         rate=0.2)
 
 
-pair = Pair([TestSleepFeeder(0)], [TestSleepDownloader(0)], timedelta(seconds=5), 4, 4)
+pair = Pair([TestSleepFeeder(0)], [TestSleepDownloader(0)], timedelta(seconds=1), timedelta(seconds=5), 4, 4)
 for i in range(1, 4):
     pair.add_feeder(TestSleepFeeder(i))
 pair.add_feeders([RandomFilterFeeder(TestSleepFeeder(i)) for i in range(4, 7)])
@@ -37,6 +37,6 @@ pair.add_downloaders([JustLogCallbackDownloader(TestSleepDownloader(i)) for i in
 log("pair.coroutine_once()")
 asyncio.run(pair.coroutine_once())
 pair.set_downloader_concurrency(6)
-pair.set_timedelta(timedelta(seconds=10))
+pair.set_interval(timedelta(seconds=10))
 log("pair.coroutine_forever()")
 asyncio.run(pair.coroutine_forever())

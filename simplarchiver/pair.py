@@ -108,7 +108,8 @@ class Pair(Logger):
     def __init__(self,
                  feeders: List[Feeder] = [],
                  downloaders: List[Downloader] = [],
-                 time_delta: timedelta = timedelta(minutes=30),
+                 start_deny: timedelta = timedelta(seconds=4),
+                 interval: timedelta = timedelta(seconds=4),
                  feeder_concurrency: int = 3,
                  downloader_concurrency: int = 3):
         super().__init__()
@@ -119,7 +120,8 @@ class Pair(Logger):
         self.add_downloaders(downloaders)
 
         # 一次下载全部完成后，经过多长时间开始下一次下载
-        self.__timedelta: timedelta = time_delta
+        self.__interval: timedelta = interval
+        self.__start_deny: timedelta = start_deny
 
         # Semaphore信号量是asyncio提供的控制协程并发数的方法
         self.__fc_concurrency: int = feeder_concurrency
@@ -152,8 +154,11 @@ class Pair(Logger):
         self.__dcs.extend([DownloadController(downloader) for downloader in downloaders])
         self.setTag(self.__tag)
 
-    def set_timedelta(self, timedelta: timedelta):
-        self.__timedelta = timedelta
+    def set_interval(self, interval: timedelta):
+        self.__interval = interval
+
+    def set_start_deny(self, start_deny: timedelta):
+        self.__start_deny = start_deny
 
     def set_feeder_concurrency(self, n: int):
         self.__fc_concurrency = n
@@ -208,8 +213,10 @@ class Pair(Logger):
                 self.__log_coroutine_once('retry')
 
     async def coroutine_forever(self):
+        self.getLogger().debug('sleep for %ss before first coroutine_once' % self.__start_deny.total_seconds())
+        await asyncio.sleep(self.__start_deny.total_seconds(), result=True)
         await self.__coroutine_once_no_raise()
-        self.getLogger().debug('sleep for %ss before next coroutine_once' % self.__timedelta.total_seconds())
-        while await asyncio.sleep(self.__timedelta.total_seconds(), result=True):
+        self.getLogger().debug('sleep for %ss before next coroutine_once' % self.__interval.total_seconds())
+        while await asyncio.sleep(self.__interval.total_seconds(), result=True):
             await self.__coroutine_once_no_raise()
-            self.getLogger().debug('sleep for %ss before next coroutine_once' % self.__timedelta.total_seconds())
+            self.getLogger().debug('sleep for %ss before next coroutine_once' % self.__interval.total_seconds())
