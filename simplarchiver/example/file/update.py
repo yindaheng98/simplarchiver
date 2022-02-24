@@ -1,4 +1,5 @@
 import json
+import abc
 from typing import Any, Tuple, Callable
 
 import aiofiles
@@ -6,7 +7,18 @@ import aiofiles
 from simplarchiver import Downloader, UpdateRW, UpdateDownloader, Logger
 
 
-class UpdateList(Logger):
+class UpdatePG(Logger, metaclass=abc.ABCMeta):
+
+    @abc.abstractmethod
+    async def get(self, key: str) -> Any:
+        pass
+
+    @abc.abstractmethod
+    async def put(self, key: str, update_tag: str):
+        pass
+
+
+class UpdateList(UpdatePG):
     """用于操作下载更新标记的记录文件"""
 
     def __init__(self, path: str):
@@ -51,15 +63,15 @@ class UpdateList(Logger):
             await f.write(json.dumps(ulist, indent=4))
 
 
-class UpdateListRW(UpdateRW):
-    def __init__(self, update_list_path: str, update_list_pair_gen: Callable[[Any], Tuple[str, str]]):
+class UpdatePGRW(UpdateRW):
+    def __init__(self, update_put_get: UpdatePG, update_list_pair_gen: Callable[[Any], Tuple[str, str]]):
         super().__init__()
-        self.__update_list = UpdateList(update_list_path)
+        self.__update_put_get = update_put_get
         self.__update_list_pair_gen = update_list_pair_gen
 
     def setTag(self, tag: str = None):
         super().setTag(tag)
-        self.__update_list.setTag(tag)
+        self.__update_put_get.setTag(tag)
 
     async def read(self, item) -> bool:
         """过滤掉更新列表里已有记录且tag值相同的item"""
@@ -67,7 +79,7 @@ class UpdateListRW(UpdateRW):
         if uid is None or utag is None:
             self.getLogger().info('read | Update tag is None, return True: %s' % uid)
             return True
-        last_utag = await self.__update_list.get(uid)
+        last_utag = await self.__update_put_get.get(uid)
         self.getLogger().debug('read | This update tag is %s; last update tag is %s' % (utag, last_utag))
         if last_utag != utag:
             self.getLogger().info('read | Update tag updated, return True: %s' % uid)
@@ -79,7 +91,7 @@ class UpdateListRW(UpdateRW):
     async def write(self, item) -> bool:
         """如果下载成功就刷新更新列表里对应的item的tag值"""
         uid, utag = self.__update_list_pair_gen(item)
-        await self.__update_list.put(uid, utag)
+        await self.__update_put_get.put(uid, utag)
         return True
 
 
@@ -89,7 +101,7 @@ def CentralizedUpdateDownloader(
         update_list_pair_gen: Callable[[Any], Tuple[str, str]]):
     f = UpdateDownloader(
         base_downloader,
-        UpdateListRW(update_list_path, update_list_pair_gen)
+        UpdatePGRW(UpdateList(update_list_path), update_list_pair_gen)
     )
     f.setTag('CentralizedUpdateDownloader')
     return f
