@@ -1,6 +1,6 @@
 .idea
 test_secret.py
-test.json
+test/
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

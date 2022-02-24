@@ -1,5 +1,6 @@
 import json
 import abc
+import os
 from typing import Any, Tuple, Callable
 
 import aiofiles
@@ -63,6 +64,41 @@ class UpdateList(UpdatePG):
             await f.write(json.dumps(ulist, indent=4))
 
 
+class UpdateDir(UpdatePG):
+    """用于操作下载更新标记的记录文件"""
+
+    def __init__(self, path: str):
+        super().__init__()
+        self.__path = path
+
+    async def get(self, key: str) -> Any:
+        path = os.path.join(self.__path, key)
+        try:
+            os.makedirs(os.path.dirname(path), exist_ok=True)  # 啥都不管先创建文件夹
+            if not os.path.isfile(path):  # 先检查一下文件是否存在
+                self.getLogger().warning("Update list file not exist in %s" % path)
+                async with aiofiles.open(path, 'w', encoding='utf8') as f:
+                    await f.write('')  # 不存在的话就先创建
+                    self.getLogger().warning("A new empty update list file generated to %s" % self.__path)
+                    return ''
+            async with aiofiles.open(path, 'r', encoding='utf8') as f:
+                value = await f.read()
+                return value
+        except Exception as e:
+            self.getLogger().error("Update list file has error when get %s" % e)
+            return ''
+
+    async def put(self, key: str, update_tag: str):
+        try:
+            path = os.path.join(self.__path, key)
+            os.makedirs(os.path.dirname(path), exist_ok=True)  # 啥都不管先创建文件夹
+            async with aiofiles.open(path, 'w', encoding='utf8') as f:
+                await f.write(update_tag)  # 直接写文件
+                self.getLogger().warning("A new empty update list file generated to %s" % self.__path)
+        except Exception as e:
+            self.getLogger().error("Update list file has error when put %s" % e)
+
+
 class UpdatePGRW(UpdateRW):
     def __init__(self, update_put_get: UpdatePG, update_list_pair_gen: Callable[[Any], Tuple[str, str]]):
         super().__init__()
@@ -102,6 +138,18 @@ def CentralizedUpdateDownloader(
     f = UpdateDownloader(
         base_downloader,
         UpdatePGRW(UpdateList(update_list_path), update_list_pair_gen)
+    )
+    f.setTag('CentralizedUpdateDownloader')
+    return f
+
+
+def DecentralizedUpdateDownloader(
+        base_downloader: Downloader,
+        update_list_path: str,
+        update_list_pair_gen: Callable[[Any], Tuple[str, str]]):
+    f = UpdateDownloader(
+        base_downloader,
+        UpdatePGRW(UpdateDir(update_list_path), update_list_pair_gen)
     )
     f.setTag('CentralizedUpdateDownloader')
     return f
