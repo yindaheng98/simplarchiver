@@ -85,6 +85,6 @@ class EnclosureExceptFilter(Filter):
 
 
 def EnclosureExceptDownloader(base_downloader: Downloader):
-    f = FilterDownloader(base_downloader, EnclosureOnlyFilter())
+    f = FilterDownloader(base_downloader, EnclosureExceptFilter())
     f.setTag('EnclosureExceptDownloader')
     return f
