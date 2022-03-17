@@ -40,10 +40,10 @@ class UpdateFilter(Filter):
         """过滤掉更新列表里已有记录且tag值相同的item"""
         try:
             if await self.__update_rw.read(item):
-                self.getLogger().info('item will be downloaded: %s' % item)
+                self.getLogger().debug('item will be downloaded: %s' % item)
                 return item
             else:
-                self.getLogger().info('item will be skipped: %s' % item)
+                self.getLogger().debug('item will be skipped: %s' % item)
                 return None
         except Exception:
             self.getLogger().exception('An error occured, item will be downloaded: %s' % item)
@@ -68,16 +68,16 @@ class UpdeteCallback(Callback):
     async def callback(self, item, return_code):
         """如果下载成功就刷新更新列表里对应的item的tag值"""
         if return_code is None:
-            self.getLogger().info('Download finished , update will be writen: %s' % item)
+            self.getLogger().debug('Download finished , update will be writen: %s' % item)
             try:
                 if await self.__update_rw.write(item):
-                    self.getLogger().info('Update tag has been writen: %s' % item)
+                    self.getLogger().debug('Update tag has been writen: %s' % item)
                 else:
-                    self.getLogger().info('Update tag has not been writen: %s' % item)
+                    self.getLogger().debug('Update tag has not been writen: %s' % item)
             except Exception:
                 self.getLogger().exception('An error occured when writing update tag: %s' % item)
         else:
-            self.getLogger().info('Downloader exit %s, update will not be writen: %s' % (return_code, item))
+            self.getLogger().debug('Downloader exit %s, update will not be writen: %s' % (return_code, item))
 
 
 def UpdateDownloader(base_downloader: Downloader, update_rw: UpdateRW):

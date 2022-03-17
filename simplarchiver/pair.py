@@ -213,10 +213,10 @@ class Pair(Logger):
                 self.__log_coroutine_once('retry')
 
     async def coroutine_forever(self):
-        self.getLogger().debug('sleep for %ss before first coroutine_once' % self.__start_deny.total_seconds())
+        self.getLogger().info('sleep for %ss before first coroutine_once' % self.__start_deny.total_seconds())
         await asyncio.sleep(self.__start_deny.total_seconds(), result=True)
         await self.__coroutine_once_no_raise()
-        self.getLogger().debug('sleep for %ss before next coroutine_once' % self.__interval.total_seconds())
+        self.getLogger().info('sleep for %ss before next coroutine_once' % self.__interval.total_seconds())
         while await asyncio.sleep(self.__interval.total_seconds(), result=True):
             await self.__coroutine_once_no_raise()
-            self.getLogger().debug('sleep for %ss before next coroutine_once' % self.__interval.total_seconds())
+            self.getLogger().info('sleep for %ss before next coroutine_once' % self.__interval.total_seconds())
