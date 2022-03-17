@@ -32,7 +32,7 @@ class UpdateList(UpdatePG):
             async with aiofiles.open(self.__path, 'r', encoding='utf8') as f:
                 json.loads(await f.read())  # 先检查一下文件是否可以读取
         except Exception as e:
-            self.getLogger().error("Update list file has error %s" % e)
+            self.getLogger().exception("Update list file has error %s" % e)
             async with aiofiles.open(self.__path, 'w', encoding='utf8') as f:
                 await f.write(json.dumps({}))  # 不存在的话就先写个空列表进去
                 self.getLogger().warning("A new empty update list file generated to %s" % self.__path)
@@ -85,7 +85,7 @@ class UpdateDir(UpdatePG):
                 value = await f.read()
                 return value
         except Exception as e:
-            self.getLogger().error("Update list file has error when get %s" % e)
+            self.getLogger().exception("Update list file has error when get %s" % e)
             return ''
 
     async def put(self, key: str, update_tag: str):
@@ -96,7 +96,7 @@ class UpdateDir(UpdatePG):
                 await f.write(update_tag)  # 直接写文件
                 self.getLogger().warning("A new empty update list file generated to %s" % self.__path)
         except Exception as e:
-            self.getLogger().error("Update list file has error when put %s" % e)
+            self.getLogger().exception("Update list file has error when put %s" % e)
 
 
 class UpdatePGRW(UpdateRW):

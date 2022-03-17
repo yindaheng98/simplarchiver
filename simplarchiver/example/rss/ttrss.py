@@ -121,7 +121,7 @@ class TTRSSCatFeeder(Feeder):
 
     async def get_feeds(self):
         async with TTRSSClient(**self.httpx_client_opt_generator(), **self.ttrss_client_opt) as client:
-            self.getLogger().info("succeeded login to TTRSS")
+            self.getLogger().debug("succeeded login to TTRSS")
             feeds = await client.api({
                 "op": "getFeeds",
                 "cat_id": self.__cat_id,
@@ -137,5 +137,5 @@ class TTRSSCatFeeder(Feeder):
                     "order_by": "feed_dates"
                 })
                 i = {'recent_link': content[0]['link'], 'feed_url': feed['feed_url']}
-                self.getLogger().info("yield an item: %s" % json.dumps(i))
+                self.getLogger().debug("yield an item: %s" % json.dumps(i))
                 yield i

@@ -41,7 +41,7 @@ class RSSHubFeeder(Feeder):
                     if item.find('enclosure') is not None:
                         enclosure = item.find('enclosure').get("url")
                         i['enclosure'] = enclosure
-                    self.getLogger().info("yield item: %s" % json.dumps(i))
+                    self.getLogger().debug("yield item: %s" % json.dumps(i))
                     yield i
 
 
@@ -75,7 +75,7 @@ class RSSHubMultiPageFeeder(Feeder):
             url = self.__url_gen(page)
             rf = RSSHubFeeder(url, self.httpx_client_opt_generator)
             rf.setTag(self.__tag_for_feeder)
-            self.getLogger().info("got page %d: %s" % (page, url))
+            self.getLogger().debug("got page %d: %s" % (page, url))
             try:
                 async for item in rf.get_feeds():
                     yield item

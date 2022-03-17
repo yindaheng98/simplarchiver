@@ -28,7 +28,7 @@ class TTRSSHubLinkFilter(Filter):
         专为TTRSSHubLinkFeeder和TTRSSHubLinkDownloader设计
         """
         feed_url = item["feed_url"]
-        self.getLogger().info("getting the original link of %s" % feed_url)
+        self.getLogger().debug("getting the original link of %s" % feed_url)
         async with httpx.AsyncClient(**self.httpx_client_opt_generator()) as client:
             response = await client.get(feed_url)
             root = ElementTree.XML(response.content)
@@ -36,7 +36,7 @@ class TTRSSHubLinkFilter(Filter):
             link = channel.find('link').text
             item["link"] = link
             item['pubDate'] = list(root.iter('item'))[0].find('pubDate').text
-        self.getLogger().info("got the original link of %s: %s" % (feed_url, item["link"]))
+        self.getLogger().debug("got the original link of %s: %s" % (feed_url, item["link"]))
         return item
 
 
@@ -59,10 +59,10 @@ class EnclosureOnlyFilter(Filter):
 
     async def filter(self, item):
         if 'enclosure' in item:
-            self.getLogger().info("This item has an enclosure, keep it: %s" % item)
+            self.getLogger().debug("This item has an enclosure, keep it: %s" % item)
             return item
         else:
-            self.getLogger().info("This item has no enclosure, drop it: %s" % item)
+            self.getLogger().debug("This item has no enclosure, drop it: %s" % item)
             return None
 
 
@@ -77,10 +77,10 @@ class EnclosureExceptFilter(Filter):
 
     async def filter(self, item):
         if 'enclosure' in item:
-            self.getLogger().info("This item has an enclosure, drop it: %s" % item)
+            self.getLogger().debug("This item has an enclosure, drop it: %s" % item)
             return None
         else:
-            self.getLogger().info("This item has no enclosure, keep it: %s" % item)
+            self.getLogger().debug("This item has no enclosure, keep it: %s" % item)
             return item
 
 
