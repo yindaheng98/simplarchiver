@@ -97,16 +97,19 @@ class AmplifierFeeder(Feeder):
         super().__init__()
         self.__base_feeder = base_feeder
         self.__ampl_feeder_gen = ampl_feeder_gen
+        self.__ampl_tag = None
 
     def setTag(self, tag: str = None):
         super().setTag(tag)
         self.__base_feeder.setTag(tag)
+        self.__ampl_tag = tag
 
     async def get_feeds(self):
         async for item in self.__base_feeder.get_feeds():  # 获取基本Feeder里的item
             try:
                 self.getLogger().debug("amplifying item: %s" % item)
                 sub_feeder = self.__ampl_feeder_gen(item)  # 生成放大器Feeder
+                sub_feeder.setTag(self.__ampl_tag)
                 self.getLogger().debug("item  amplified: %s" % item)
             except Exception:
                 self.getLogger().exception("Catch an Exception from your Amplifier Generator, skip it: %s" % item)
