@@ -113,15 +113,15 @@ class UpdatePGRW(UpdateRW):
         """过滤掉更新列表里已有记录且tag值相同的item"""
         uid, utag = self.__update_list_pair_gen(item)
         if uid is None or utag is None:
-            self.getLogger().info('read | Update tag is None, return True: %s' % uid)
+            self.getLogger().debug('read | Update tag is None, return True: %s' % uid)
             return True
         last_utag = await self.__update_put_get.get(uid)
         self.getLogger().debug('read | This update tag is %s; last update tag is %s' % (utag, last_utag))
         if last_utag != utag:
-            self.getLogger().info('read | Update tag updated, return True: %s' % uid)
+            self.getLogger().debug('read | Update tag updated, return True: %s' % uid)
             return True
         else:
-            self.getLogger().info('read | Update tag not updated, return False: %s' % uid)
+            self.getLogger().debug('read | Update tag not updated, return False: %s' % uid)
             return False
 
     async def write(self, item) -> bool:
