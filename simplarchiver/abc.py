@@ -151,10 +151,10 @@ class FilterDownloader(Downloader):
             self.getLogger().exception("Catch an Exception from your Downloader Filter, skip it: %s" % item)
             item = None
         if item is not None:  # 如果过滤器返回了None，则会被过滤掉，不会被Download
-            self.getLogger().debug("keep: %s" % item)
+            self.getLogger().info("keep: %s" % item)
             return await self.__base_downloader.download(item)
         else:
-            self.getLogger().debug("skip: %s" % item_t)
+            self.getLogger().info("skip: %s" % item_t)
 
 
 class Callback(Logger, metaclass=abc.ABCMeta):
