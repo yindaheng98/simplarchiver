@@ -129,13 +129,16 @@ class TTRSSCatFeeder(Feeder):
             })
             self.getLogger().debug("got cat data of cat %d: %s" % (self.__cat_id, json.dumps(feeds)))
             for feed in feeds:
-                content = await client.api({
-                    "op": "getHeadlines",
-                    "feed_id": feed['id'],
-                    "limit": 1,
-                    "view_mode": "all_articles",
-                    "order_by": "feed_dates"
-                })
-                i = {'recent_link': content[0]['link'], 'feed_url': feed['feed_url']}
-                self.getLogger().debug("yield an item: %s" % json.dumps(i))
-                yield i
+                try:
+                    content = await client.api({
+                        "op": "getHeadlines",
+                        "feed_id": feed['id'],
+                        "limit": 1,
+                        "view_mode": "all_articles",
+                        "order_by": "feed_dates"
+                    })
+                    i = {'recent_link': content[0]['link'], 'feed_url': feed['feed_url']}
+                    self.getLogger().debug("yield an item: %s" % json.dumps(i))
+                    yield i
+                except Exception:
+                    self.getLogger().exception("cannot feed: %s" % feed)
