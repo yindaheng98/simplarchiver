@@ -80,4 +80,4 @@ class RSSHubMultiPageFeeder(Feeder):
                 async for item in rf.get_feeds():
                     yield item
             except Exception:
-                self.getLogger().exception("Catch an Exception from Temp Feeder:")
+                self.getLogger().exception("Catch an Exception from page %d: %s" % (page, url))
