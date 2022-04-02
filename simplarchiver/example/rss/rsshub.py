@@ -32,12 +32,13 @@ class RSSHubFeeder(Feeder):
             root = ElementTree.XML(response.text)
             fed = set()  # 用集合去除重复项
             for item in root.iter('item'):
-                pubDate = item.find('pubDate').text
                 link = item.find('link').text
-                self.getLogger().debug("got fromrss xml: link %s and pubDate %s" % (link, pubDate))
+                i = {}
+                for subitem in item.iter():
+                    i[subitem.tag] = subitem.text
+                self.getLogger().debug("got fromrss xml: link %s" % link)
                 if link not in fed:
                     fed.add(link)
-                    i = {'pubDate': pubDate, 'link': link}
                     if item.find('enclosure') is not None:
                         enclosure = item.find('enclosure').get("url")
                         i['enclosure'] = enclosure
