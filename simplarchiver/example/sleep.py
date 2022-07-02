@@ -1,4 +1,4 @@
-from simplarchiver import Feeder, Downloader
+from simplarchiver import Feeder, Downloader, Filter, Amplifier
 import random
 import asyncio
 import logging
@@ -27,7 +27,8 @@ class SleepFeeder(Feeder):
         for i in range(0, self.n):
             t = random.random() * self.rand_max if self.seconds is None else self.seconds
             SleepFeeder.running += 1
-            self.getLogger().info('Now there are %d SleepFeeder awaiting including me, I will sleep %f seconds' % (SleepFeeder.running, t))
+            self.getLogger().info('Now there are %d SleepFeeder awaiting including me, I will sleep %f seconds' % (
+                SleepFeeder.running, t))
             item = await asyncio.sleep(delay=t, result='item(i=%s,t=%s)' % (i, t))
             self.getLogger().info('I have slept %f seconds, time to wake up and return an item %s' % (t, item))
             SleepFeeder.running -= 1
@@ -60,3 +61,30 @@ class SleepDownloader(Downloader):
         self.getLogger().info('I have slept %f seconds for the item %s, time to wake up' % (t, item))
         SleepDownloader.running -= 1
         self.getLogger().info('I wake up, Now there are %d SleepDownloader awaiting' % SleepDownloader.running)
+
+
+class SleepFliter(Filter):
+    def __init__(self, i=uuid.uuid4()):
+        super().__init__()
+        self.id = i
+        self.getLogger().info('Initialized: filter=%s' % i)
+
+    async def filter(self, item):
+        self.getLogger().info('I get an item! %s' % item)
+        return item
+
+
+class SleepAmplifier(Amplifier):
+    def __init__(self, i=uuid.uuid4()):
+        super().__init__()
+        self.id = i
+        self.getLogger().info('Initialized: amplify=%s' % i)
+
+    async def amplify(self, item):
+        self.getLogger().info('I get an item! %s' % item)
+        item += 'a'
+        yield item
+        item += 'b'
+        yield item
+        item += 'c'
+        yield item

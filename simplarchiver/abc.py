@@ -27,24 +27,50 @@ class Logger:
         Logger.__ClassnamePadding = max(Logger.__ClassnamePadding, len(self.__class__.__name__))
 
 
+async def noop(i):
+    return i
+
+
 class Node(Logger, metaclass=abc.ABCMeta):
     """Chain上的Node"""
 
     @abc.abstractmethod
     async def call(self, item):
-        yield
+        yield item
 
     def __init__(self):
         super().__init__()
-        self.n = None
+        self.__next__ = noop
 
     def next(self, node):
-        self.n = node
+        self.__next__ = node
+        return node
 
     async def __call__(self, item):
         async for i in self.call(item):
-            if i is not None and self.n is not None:
-                self.n(i)
+            if i is not None:
+                await self.__next__(i)
+
+
+class Branch(Node):
+    """有分支的Node"""
+
+    def call(self, item):
+        return item
+
+    def __init__(self):
+        super().__init__()
+        self.__next__ = []
+
+    def next(self, node):
+        self.__next__.append(node)
+        return self
+
+    async def __call__(self, item):
+        i = self.call(item)
+        if i is not None:
+            for n in self.__next__:
+                await n(i)
 
 
 class Feeder(Node, metaclass=abc.ABCMeta):
@@ -60,6 +86,22 @@ class Feeder(Node, metaclass=abc.ABCMeta):
         如果不是为了兼容，谁想写这个功能完全没变的class
         """
         async for i in self.get_feeds():
+            yield i
+
+
+class Amplifier(Node, metaclass=abc.ABCMeta):
+    """Amplifier的最基本结构, 输入一个item输出一堆item"""
+
+    @abc.abstractmethod
+    async def amplify(self, item):
+        yield item
+
+    async def call(self, item):
+        """
+        一个一个地输出item
+        如果不是为了兼容，谁想写这个功能完全没变的class
+        """
+        async for i in self.amplify(item):
             yield i
 
 
