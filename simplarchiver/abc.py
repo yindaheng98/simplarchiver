@@ -27,26 +27,60 @@ class Logger:
         Logger.__ClassnamePadding = max(Logger.__ClassnamePadding, len(self.__class__.__name__))
 
 
-class Feeder(Logger, metaclass=abc.ABCMeta):
-    """最基本的Feeder"""
+class Node(Logger, metaclass=abc.ABCMeta):
+    """Chain上的Node"""
+
+    @abc.abstractmethod
+    async def call(self, item):
+        yield
+
+    def __init__(self):
+        super().__init__()
+        self.n = None
+
+    def next(self, node):
+        self.n = node
+
+    async def __call__(self, item):
+        async for i in self.call(item):
+            if i is not None and self.n is not None:
+                self.n(i)
+
+
+class Feeder(Node, metaclass=abc.ABCMeta):
+    """Feeder的最基本结构, 可以看作是Chain的Root或Head"""
 
     @abc.abstractmethod
     async def get_feeds(self):
         yield
 
+    async def call(self, item):
+        """
+        一个一个地输出item
+        如果不是为了兼容，谁想写这个功能完全没变的class
+        """
+        async for i in self.get_feeds():
+            yield i
 
-class Downloader(Logger, metaclass=abc.ABCMeta):
-    """最基本的Downloader"""
+
+class Downloader(Node, metaclass=abc.ABCMeta):
+    """Downloader的最基本结构, 可以看作是Chain的Tail"""
 
     @abc.abstractmethod
     async def download(self, item):
         pass
 
+    async def call(self, item):
+        """
+        等下载完了返回下载结果
+        """
+        yield await self.download(item)
+
 
 '''以下抽象类是一些可有可无的扩展功能'''
 
 
-class Filter(Logger, metaclass=abc.ABCMeta):
+class Filter(Node, metaclass=abc.ABCMeta):
     """过滤器，给FilterFeeder和FilterDownloader用"""
 
     @abc.abstractmethod
@@ -56,6 +90,12 @@ class Filter(Logger, metaclass=abc.ABCMeta):
         过滤器内可以修改item
         """
         return item
+
+    async def call(self, item):
+        """
+        如果不是为了兼容，谁想写这个功能完全没变的class
+        """
+        yield await self.filter(item)
 
 
 class FilterFeeder(Feeder):
