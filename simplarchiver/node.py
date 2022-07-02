@@ -74,3 +74,26 @@ class Node(Logger, metaclass=abc.ABCMeta):
         await self.__next__.join()  # 先等后面的退出
         if self.__queue is not None:
             await self.__queue.join()  # 再退出自己
+
+
+class Branch(Node):
+    """有分支的Node, 将输入的item复制给各分支"""
+
+    def call(self, item):
+        return item
+
+    def __init__(self):
+        super().__init__()
+        self.__next__ = []
+
+    def next(self, node: Node):
+        self.__next__.append(node)
+        return self
+
+    async def __call__(self, item):
+        i = self.call(item)
+        if i is not None:
+            await asyncio.gather(*[n(i) for n in self.__next__])  # 必须等这个item成功输入到所有分支上才算完成
+
+    async def join(self):
+        await asyncio.gather(*[n.join() for n in self.__next__])  # 要等后面的全部退出
