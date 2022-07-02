@@ -118,3 +118,13 @@ class Root(Node):
     async def __call__(self, item):
         await self.__next__(item)
         await self.__next__.join()
+
+
+class MultiRoot(Branch):
+
+    def __init__(self):
+        super().__init__()
+
+    async def __call__(self, item):
+        await super().__call__(item)
+        await super().join()
