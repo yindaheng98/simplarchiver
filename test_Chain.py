@@ -1,3 +1,5 @@
+import time
+
 from simplarchiver.abc import *
 from simplarchiver.example import *
 from datetime import timedelta
@@ -6,8 +8,10 @@ import asyncio
 
 logging.basicConfig(level=logging.DEBUG, format=' %(asctime)s | %(levelname)-8s | %(name)-26s | %(message)s')
 
-root = SleepFeeder(0)
-b = root.next(SleepFliter(1)).next(SleepAmplifier(1)).next(Branch())
+root = Root()
+b = root.next(SleepFeeder(0)).next(SleepFliter(1)).next(SleepAmplifier(1)).next(Branch())
 b.next(SleepDownloader(0))
 b.next(SleepDownloader(1))
-asyncio.run(root(None))
+asyncio.run(root(123))
+print("sleeping")
+time.sleep(10)

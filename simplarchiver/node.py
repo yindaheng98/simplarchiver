@@ -41,17 +41,21 @@ class Node(Logger, metaclass=abc.ABCMeta):
         """n表示该节点的并发数"""
         super().__init__()
 
-        def noop(i):
-            self.getLogger().warning("There is no next node here for item %s" % i)
-            return i
+        class Noop(Logger):
+            async def __call__(self, item):
+                self.getLogger().warning("There is no next node here for item %s" % item)
+                return item
 
-        self.__next__ = noop
+            async def join(self):
+                return
+
+        self.__next__: Node = Noop()
         self.__n = n
         self.__queue = None
         self.__semaphore = None
 
     def next(self, node):
-        self.__next__ = node
+        self.__next__: Node = node
         return node
 
     async def __corr(self):
@@ -63,6 +67,8 @@ class Node(Logger, metaclass=abc.ABCMeta):
             self.__queue.task_done()  # 调用完了通知一声
 
     async def __call__(self, item):
+        if item is None:  # 过滤掉None
+            return
         if self.__queue is None:
             self.__queue: asyncio.Queue = asyncio.Queue(self.__n)
         await self.__queue.put(item)  # 调用就是直接入队列
@@ -91,9 +97,24 @@ class Branch(Node):
         return self
 
     async def __call__(self, item):
+        if item is None:  # 过滤掉None
+            return
         i = self.call(item)
         if i is not None:
             await asyncio.gather(*[n(i) for n in self.__next__])  # 必须等这个item成功输入到所有分支上才算完成
 
     async def join(self):
         await asyncio.gather(*[n.join() for n in self.__next__])  # 要等后面的全部退出
+
+
+class Root(Node):
+
+    def call(self, item):
+        return item
+
+    def __init__(self):
+        super().__init__()
+
+    async def __call__(self, item):
+        await self.__next__(item)
+        await self.__next__.join()

@@ -1,76 +1,5 @@
-import abc
-import logging
 from typing import Callable, Any
-
-
-class Logger:
-    """用于记录日志的统一接口"""
-    __ID: int = 0
-    __TagPadding = 0
-    __ClassnamePadding = 0
-
-    def __init__(self):
-        self.__tag = "Untagged Class %d" % Logger.__ID
-        Logger.__ID += 1
-
-    def getLogger(self):
-        self.__update_padding()
-        return logging.getLogger(("%%-%ds | %%-%ds" % (Logger.__TagPadding, Logger.__ClassnamePadding)
-                                  ) % (self.__tag, self.__class__.__name__))
-
-    def setTag(self, tag):
-        if tag is not None:
-            self.__tag = tag
-
-    def __update_padding(self):
-        Logger.__TagPadding = max(Logger.__TagPadding, len(self.__tag))
-        Logger.__ClassnamePadding = max(Logger.__ClassnamePadding, len(self.__class__.__name__))
-
-
-async def noop(i):
-    return i
-
-
-class Node(Logger, metaclass=abc.ABCMeta):
-    """Chain上的Node"""
-
-    @abc.abstractmethod
-    async def call(self, item):
-        yield item
-
-    def __init__(self):
-        super().__init__()
-        self.__next__ = noop
-
-    def next(self, node):
-        self.__next__ = node
-        return node
-
-    async def __call__(self, item):
-        async for i in self.call(item):
-            if i is not None:
-                await self.__next__(i)
-
-
-class Branch(Node):
-    """有分支的Node"""
-
-    def call(self, item):
-        return item
-
-    def __init__(self):
-        super().__init__()
-        self.__next__ = []
-
-    def next(self, node):
-        self.__next__.append(node)
-        return self
-
-    async def __call__(self, item):
-        i = self.call(item)
-        if i is not None:
-            for n in self.__next__:
-                await n(i)
+from .node import *
 
 
 class Feeder(Node, metaclass=abc.ABCMeta):
@@ -80,13 +9,16 @@ class Feeder(Node, metaclass=abc.ABCMeta):
     async def get_feeds(self):
         yield
 
-    async def call(self, item):
+    async def call(self, _):
         """
-        一个一个地输出item
+        一个一个地输出item, 其实完全可以由Amplifier替代
         如果不是为了兼容，谁想写这个功能完全没变的class
         """
-        async for i in self.get_feeds():
-            yield i
+        try:
+            async for i in self.get_feeds():
+                yield i
+        except Exception:
+            self.getLogger().exception("Catch an Exception from your Feeder")
 
 
 class Amplifier(Node, metaclass=abc.ABCMeta):
@@ -98,11 +30,15 @@ class Amplifier(Node, metaclass=abc.ABCMeta):
 
     async def call(self, item):
         """
-        一个一个地输出item
-        如果不是为了兼容，谁想写这个功能完全没变的class
+        由一个item生成一串item
         """
-        async for i in self.amplify(item):
-            yield i
+        self.getLogger().debug("amplifying item: %s" % item)
+        try:
+            async for i in self.amplify(item):
+                self.getLogger().debug("item  amplified: %s" % item)
+                yield i
+        except Exception:
+            self.getLogger().exception("Catch an Exception from your Amplifier, skip it: %s" % item)
 
 
 class Downloader(Node, metaclass=abc.ABCMeta):
@@ -116,7 +52,11 @@ class Downloader(Node, metaclass=abc.ABCMeta):
         """
         等下载完了返回下载结果
         """
-        yield await self.download(item)
+        self.getLogger().debug("Download start: %s" % item)
+        try:
+            yield await self.download(item)
+        except Exception:
+            self.getLogger().exception("Catch an Exception from your Downloader, skip it: %s" % item)
 
 
 '''以下抽象类是一些可有可无的扩展功能'''
@@ -137,7 +77,12 @@ class Filter(Node, metaclass=abc.ABCMeta):
         """
         如果不是为了兼容，谁想写这个功能完全没变的class
         """
-        yield await self.filter(item)
+        try:
+            self.getLogger().debug("before filter: %s" % item)
+            yield await self.filter(item)
+            self.getLogger().debug("after  filter: %s" % item)
+        except Exception:
+            self.getLogger().exception("Catch an Exception from your Filter, skip it: %s" % item)
 
 
 class FilterFeeder(Feeder):
