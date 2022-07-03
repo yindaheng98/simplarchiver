@@ -108,16 +108,41 @@ class Branch(Node):
 
 
 class Root(Node):
+    """Root是Chain的起点, 只是简单地调用下一个Node"""
+
+    def call(self, item):
+        raise Exception("You should not call a Root.call")
+
+    def __init__(self):
+        super().__init__()  # 只是初始化一个Node
+
+    async def __call__(self, item):
+        await self.__next__(item)  # 只是简单地调用下一个Node
+
+    async def join(self):
+        await self.__next__.join()  # 只是简单地调用下一个Node的join
+
+
+class Chain(Node):
 
     def call(self, item):
         return item
 
     def __init__(self):
         super().__init__()
+        self.__root = Root()
+        self.__tail = self.__root
 
     async def __call__(self, item):
-        await self.__next__(item)
-        await self.__next__.join()
+        await self.__root(item)  # Chain的调用就是Root的调用
+
+    async def join(self):
+        await self.__root.join()  # Root退出了就算Chain退出
+
+    def next(self, node: Node):
+        self.__tail.next(node)  # Chain的next就是最后一个Node的next
+        self.__tail = node
+        return self
 
 
 class MultiRoot(Branch):
