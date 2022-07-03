@@ -94,7 +94,7 @@ class Branch(Node):
 
     def next(self, node: Node):
         self.__next__.append(node)
-        return self
+        return node
 
     async def __call__(self, item):
         if item is None:  # 过滤掉None
@@ -145,11 +145,8 @@ class Chain(Node):
         return self
 
 
-class MultiRoot(Branch):
+class ForestRoot(Branch):
+    """ForestRoot是多条Chain的起点, 只是简单地调用下一个Node"""
 
     def __init__(self):
         super().__init__()
-
-    async def __call__(self, item):
-        await super().__call__(item)
-        await super().join()

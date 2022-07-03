@@ -10,8 +10,8 @@ logging.basicConfig(level=logging.DEBUG, format=' %(asctime)s | %(levelname)-8s 
 
 root = Root()
 b = root.next(SleepFeeder(0)).next(SleepFliter(1)).next(SleepAmplifier(1)).next(Branch())
-b.next(SleepDownloader(0))
-b.next(SleepDownloader(1))
+b.next(SleepFliter(2)).next(SleepDownloader(0))
+b.next(SleepFliter(3)).next(SleepDownloader(1))
 async def main():
     await root(123)
     await root.join()
