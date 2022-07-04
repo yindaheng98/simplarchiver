@@ -242,4 +242,4 @@ class FilterCallbackDownloader(Downloader):
         如果不是为了兼容，谁想写这个功能完全没变的class
         """
         async for i in self.__seq.call(item):
-            yield i
+            return i
