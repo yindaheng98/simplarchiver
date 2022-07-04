@@ -82,7 +82,7 @@ class Filter(Node, metaclass=abc.ABCMeta):
         """
         try:
             self.getLogger().debug("before filter: %s" % item)
-            yield await self.filter(item)
+            yield await self.filter(item)  # 如果不是为了兼容，谁想用这种方式返回
             self.getLogger().debug("after  filter: %s" % item)
         except Exception:
             self.getLogger().exception("Catch an Exception from your Filter, skip it: %s" % item)
@@ -96,7 +96,7 @@ class Callback(Node, metaclass=abc.ABCMeta):
         """
         回调函数接受两个参数，一个是item，一个是被封装的基本Downloader的返回值
         """
-        pass
+        return return_code
 
     async def call(self, i):
         """
@@ -110,7 +110,7 @@ class Callback(Node, metaclass=abc.ABCMeta):
         except Exception:
             self.getLogger().exception("Catch an Exception from your Callback: %s" % item)
         self.getLogger().debug("finish callback")
-        yield return_code  # 调用了回调之后将return_code继续向下一级返回
+        yield return_code  # 调用了回调之后将return_code继续向下一级返回  # 如果不是为了兼容，谁想用这种方式返回
 
 
 class Sequence(Node):
@@ -205,7 +205,7 @@ class FilterDownloader(Downloader):
         带过滤的Downloader的Download过程
         如果不是为了兼容，谁想写这个功能完全没变的class
         """
-        async for i in self.__seq.call(item):
+        async for i in self.__seq.call(item):  # 如果不是为了兼容，谁想用这种方式返回
             return i
 
 
@@ -221,7 +221,7 @@ class CallbackDownloader(Downloader):
         """
         如果不是为了兼容，谁想写这个功能完全没变的class
         """
-        async for i in self.__seq.call(item):
+        async for i in self.__seq.call(item):  # 如果不是为了兼容，谁想用这种方式返回
             return i
 
 
@@ -241,5 +241,5 @@ class FilterCallbackDownloader(Downloader):
         过滤+回调
         如果不是为了兼容，谁想写这个功能完全没变的class
         """
-        async for i in self.__seq.call(item):
+        async for i in self.__seq.call(item):  # 如果不是为了兼容，谁想用这种方式返回
             return i
