@@ -54,7 +54,10 @@ class Downloader(Node, metaclass=abc.ABCMeta):
         """
         self.getLogger().debug("Download start: %s" % item)
         try:
-            yield await self.download(item)
+            yield {
+                "item": item,
+                "return_code": await self.download(item)
+            }
         except Exception:
             self.getLogger().exception("Catch an Exception from your Downloader, skip it: %s" % item)
 
@@ -85,36 +88,72 @@ class Filter(Node, metaclass=abc.ABCMeta):
             self.getLogger().exception("Catch an Exception from your Filter, skip it: %s" % item)
 
 
+class Callback(Node, metaclass=abc.ABCMeta):
+    """回调器，给Downloader用"""
+
+    @abc.abstractmethod
+    async def callback(self, item, return_code):
+        """
+        回调函数接受两个参数，一个是item，一个是被封装的基本Downloader的返回值
+        """
+        pass
+
+    async def call(self, i):
+        """
+        如果不是为了兼容，谁想写这个功能完全没变的class
+        """
+        item, return_code = i["item"], i["return_code"]
+        self.getLogger().debug("return %s: %s" % (return_code, item))
+        self.getLogger().debug("start  callback")
+        try:
+            await self.callback(item, return_code)
+        except Exception:
+            self.getLogger().exception("Catch an Exception from your Callback: %s" % item)
+        self.getLogger().debug("finish callback")
+        yield return_code  # 调用了回调之后将return_code继续向下一级返回
+
+
+class Sequence(Node):
+    def __init__(self, *args: Node):
+        super().__init__()
+        self.__seq = args
+
+    def setTag(self, tag: str = None):
+        super().setTag(tag)
+        for n in self.__seq:
+            n.setTag(tag)
+
+    async def call(self, item):
+        async def _call(item, i: int):
+            if item is None:
+                return
+            if i >= len(self.__seq) - 1:
+                async for sub in self.__seq[i].call(item):
+                    yield sub
+            else:
+                async for sub in self.__seq[i].call(item):
+                    async for res in _call(sub, i + 1):
+                        yield res
+
+        async for sub in _call(item, 0):
+            yield sub
+
+
 class FilterFeeder(Feeder):
     """带过滤功能的Feeder"""
 
     def __init__(self, base_feeder: Feeder, filter: Filter):
         """从一个基本的Feeder生成带过滤的Feeder"""
         super().__init__()
-        self.__base_feeder = base_feeder
-        self.__filter = filter
-
-    def setTag(self, tag: str = None):
-        super().setTag(tag)
-        self.__base_feeder.setTag(tag)
-        self.__filter.setTag(tag)
+        self.__seq = Sequence(base_feeder, filter)
 
     async def get_feeds(self):
-        """带过滤的Feeder的Feed过程"""
-        async for item in self.__base_feeder.get_feeds():
-            item_t = item
-            try:
-                self.getLogger().debug("before filter: %s" % item)
-                item = await self.__filter.filter(item)
-                self.getLogger().debug("after  filter: %s" % item)
-            except Exception:
-                self.getLogger().exception("Catch an Exception from your Feeder Filter, skip it: %s" % item)
-                item = None
-            if item is not None:  # 如果过滤器返回了None，则会被过滤掉，不会被yield
-                self.getLogger().info("feed: %s" % item)
-                yield item
-            else:
-                self.getLogger().info("skip: %s" % item_t)
+        """
+        带过滤的Feeder的Feed过程
+        如果不是为了兼容，谁想写这个功能完全没变的class
+        """
+        async for item in self.__seq.call({}):
+            yield item
 
 
 class AmplifierFeeder(Feeder):
@@ -159,40 +198,15 @@ class FilterDownloader(Downloader):
     def __init__(self, base_downloader: Downloader, filter: Filter):
         """从一个基本的Downloader生成带过滤的Downloader"""
         super().__init__()
-        self.__base_downloader = base_downloader
-        self.__filter = filter
-
-    def setTag(self, tag: str = None):
-        super().setTag(tag)
-        self.__base_downloader.setTag(tag)
-        self.__filter.setTag(tag)
+        self.__seq = Sequence(filter, base_downloader)
 
     async def download(self, item):
-        """带过滤的Downloader的Download过程"""
-        item_t = item
-        try:
-            self.getLogger().debug("before filter: %s" % item)
-            item = await self.__filter.filter(item)
-            self.getLogger().debug("after  filter: %s" % item)
-        except Exception:
-            self.getLogger().exception("Catch an Exception from your Downloader Filter, skip it: %s" % item)
-            item = None
-        if item is not None:  # 如果过滤器返回了None，则会被过滤掉，不会被Download
-            self.getLogger().info("keep: %s" % item)
-            return await self.__base_downloader.download(item)
-        else:
-            self.getLogger().info("skip: %s" % item_t)
-
-
-class Callback(Logger, metaclass=abc.ABCMeta):
-    """回调器，给CallbackDownloader用"""
-
-    @abc.abstractmethod
-    async def callback(self, item, return_code):
         """
-        回调函数接受两个参数，一个是item，一个是被封装的基本Downloader的返回值
+        带过滤的Downloader的Download过程
+        如果不是为了兼容，谁想写这个功能完全没变的class
         """
-        pass
+        async for i in self.__seq.call(item):
+            return i
 
 
 class CallbackDownloader(Downloader):
@@ -201,24 +215,14 @@ class CallbackDownloader(Downloader):
     def __init__(self, base_downloader: Downloader, callback: Callback):
         """从一个基本的Downloader生成具有回调功能Downloader"""
         super().__init__()
-        self.__base_downloader = base_downloader
-        self.__callback = callback
-
-    def setTag(self, tag: str = None):
-        super().setTag(tag)
-        self.__base_downloader.setTag(tag)
-        self.__callback.setTag(tag)
+        self.__seq = Sequence(base_downloader, callback)
 
     async def download(self, item):
-        return_code = await self.__base_downloader.download(item)
-        self.getLogger().debug("return %s: %s" % (return_code, item))
-        self.getLogger().debug("start  callback")
-        try:
-            await self.__callback.callback(item, return_code)
-        except Exception:
-            self.getLogger().exception("Catch an Exception from your Callback: %s" % item)
-        self.getLogger().debug("finish callback")
-        return return_code  # 调用了回调之后将return_code继续向下一级返回
+        """
+        如果不是为了兼容，谁想写这个功能完全没变的class
+        """
+        async for i in self.__seq.call(item):
+            return i
 
 
 '''下面这个抽象类是FilterDownloader和CallbackDownloader的杂交'''
@@ -230,36 +234,12 @@ class FilterCallbackDownloader(Downloader):
     def __init__(self, base_downloader: Downloader, filter: Filter, callback: Callback):
         """从一个基本的Downloader生成具有过滤和回调功能Downloader"""
         super().__init__()
-        self.__base_downloader = base_downloader
-        self.__filter = filter
-        self.__callback = callback
-
-    def setTag(self, tag: str = None):
-        super().setTag(tag)
-        self.__base_downloader.setTag(tag)
-        self.__filter.setTag(tag)
-        self.__callback.setTag(tag)
+        self.__seq = Sequence(filter, base_downloader, callback)
 
     async def download(self, item):
-        """过滤+回调"""
-        item_t = item
-        try:
-            self.getLogger().debug("before filter: %s" % item)
-            item = await self.__filter.filter(item)
-            self.getLogger().debug("after  filter: %s" % item)
-        except Exception:
-            self.getLogger().exception("Catch an Exception from your Filter, skip it: %s" % item)
-            item = None
-        if item is not None:  # 如果过滤器返回了None，则会被过滤掉，不会被Download
-            self.getLogger().info("keep: %s" % item)
-            return_code = await self.__base_downloader.download(item)
-            self.getLogger().debug("return_code is: %s" % return_code)
-            self.getLogger().debug("start  callback")
-            try:
-                await self.__callback.callback(item, return_code)
-            except Exception:
-                self.getLogger().exception("Catch an Exception from your Callback:")
-            self.getLogger().debug("finish callback")
-            return return_code  # 调用了回调之后将return_code继续向下一级返回
-        else:
-            self.getLogger().info("skip: %s" % item_t)
+        """
+        过滤+回调
+        如果不是为了兼容，谁想写这个功能完全没变的class
+        """
+        async for i in self.__seq.call(item):
+            yield i

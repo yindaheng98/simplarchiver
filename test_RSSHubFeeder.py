@@ -4,7 +4,7 @@ import time
 
 import httpx
 
-from simplarchiver import Pair, MultiRoot, Branch
+from simplarchiver import Pair, ForestRoot, Branch
 from simplarchiver.example import JustDownloader
 from simplarchiver.example.rss import EnclosureOnlyDownloader, EnclosureExceptDownloader
 from simplarchiver.example.rss import RSSHubFeeder, RSSHubMultiPageFeeder
@@ -17,7 +17,7 @@ def log(msg):
     logging.info('test_Pair | %s' % msg)
 
 
-root = MultiRoot()
+root = ForestRoot()
 rsshub_feeders = [root.next(RSSHubFeeder(
     url=rsshub,
     httpx_client_opt_generator=lambda: {
@@ -44,6 +44,9 @@ for f in rsshub_feeders:
 for f in rsshub_multipage_feeders:
     f.next(branch)
 
-asyncio.run(root(123))
+async def main():
+    await root(123)
+    await root.join()
+asyncio.run(main())
 print("sleeping")
 time.sleep(10)
