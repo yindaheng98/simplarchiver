@@ -5,13 +5,11 @@ import asyncio
 
 class Logger:
     """用于记录日志的统一接口"""
-    __ID: int = 0
     __TagPadding = 0
     __ClassnamePadding = 0
 
     def __init__(self):
-        self.__tag = "Untagged Class %d" % Logger.__ID
-        Logger.__ID += 1
+        self.__tag = ("Untagged %%-%ds" % Logger.__ClassnamePadding) % self.__class__.__name__
 
     def getLogger(self):
         self.__update_padding()
