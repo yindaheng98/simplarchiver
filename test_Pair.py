@@ -17,8 +17,8 @@ for i in range(1, 4):
 pair.add_feeders([RandomFilterFeeder(SleepFeeder(i)) for i in range(4, 7)])
 for i in range(1, 4):
     pair.add_downloader(SleepDownloader(i))
-pair.add_downloaders([RandomFilterDownloader(SleepDownloader(i)) for i in range(4, 7)])
-pair.add_downloaders([JustLogCallbackDownloader(SleepDownloader(i)) for i in range(7, 10)])
+pair.add_downloaders([RandomFilterDownloader(SleepDownloader(i).set_parallel(4)) for i in range(4, 7)])
+pair.add_downloaders([JustLogCallbackDownloader(SleepDownloader(i).set_parallel(4)) for i in range(7, 10)])
 log("pair.coroutine_once()")
 asyncio.run(pair.coroutine_once())
 pair.set_downloader_concurrency(6)

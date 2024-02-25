@@ -52,6 +52,11 @@ class Node(Logger, metaclass=abc.ABCMeta):
         self.__queue = None
         self.__semaphore = None
 
+    def set_parallel(self, n: int = 1):
+        assert self.__semaphore == None
+        self.__n = n
+        return self
+
     def next(self, node):
         self.__next__: Node = node
         return node
