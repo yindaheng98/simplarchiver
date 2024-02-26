@@ -10,7 +10,7 @@ class Logger:
     __ClassnamePadding = 0
 
     def __init__(self):
-        self.__tag = ("Untagged %%-%ds" % Logger.__ClassnamePadding) % self.__class__.__name__
+        self.__tag = "Untagged"
 
     def getLogger(self):
         self.__update_padding()
