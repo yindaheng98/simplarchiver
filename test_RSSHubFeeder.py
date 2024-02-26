@@ -43,7 +43,7 @@ for f in rsshub_feeders:
     f.next(branch)
 for f in rsshub_multipage_feeders:
     f.next(branch)
-
+root.setTag("RSSHub Feeder")
 
 async def main():
     await root(123)

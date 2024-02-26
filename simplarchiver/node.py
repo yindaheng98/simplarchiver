@@ -1,6 +1,7 @@
 import abc
 import logging
 import asyncio
+from typing import List
 
 
 class Logger:
@@ -84,6 +85,10 @@ class Node(Logger, metaclass=abc.ABCMeta):
         if self.__queue is not None:
             await self.__queue.join()  # 再退出自己
 
+    def setTag(self, tag):
+        super().setTag(tag)
+        self.__next__.setTag(tag)
+
 
 class Branch(Node):
     """有分支的Node, 将输入的item复制给各分支"""
@@ -93,7 +98,7 @@ class Branch(Node):
 
     def __init__(self):
         super().__init__()
-        self.__next__ = []
+        self.__next__: List[Node] = []
 
     def next(self, node: Node):
         self.__next__.append(node)
@@ -108,6 +113,11 @@ class Branch(Node):
 
     async def join(self):
         await asyncio.gather(*[n.join() for n in self.__next__])  # 要等后面的全部退出
+
+    def setTag(self, tag):
+        Logger.setTag(self, tag)
+        for n in self.__next__:
+            n.setTag(tag)
 
 
 class Root(Node):
