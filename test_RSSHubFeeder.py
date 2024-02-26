@@ -8,7 +8,7 @@ from simplarchiver import Pair, ForestRoot, Branch
 from simplarchiver.example import JustDownloader
 from simplarchiver.example.rss import EnclosureOnlyDownloader, EnclosureExceptDownloader
 from simplarchiver.example.rss import RSSHubFeeder, RSSHubMultiPageFeeder
-from test_secret import rsshub_data, rsshub_multipage_data
+from test_secret import rsshub_data, url_gen
 
 logging.basicConfig(level=logging.DEBUG, format=' %(asctime)s | %(levelname)-8s | %(name)-26s | %(message)s')
 
@@ -27,12 +27,12 @@ rsshub_feeders = [root.next(RSSHubFeeder(
 )) for rsshub in rsshub_data]
 
 rsshub_multipage_feeders = [root.next(RSSHubMultiPageFeeder(
-    url_gen=rsshub['url_gen'], max_pages=rsshub['max_pages'],
+    url_gen=url_gen, max_pages=10,
     httpx_client_opt_generator=lambda: {
         'timeout': httpx.Timeout(1),
         'transport': httpx.AsyncHTTPTransport(retries=1)
     }
-)) for rsshub in rsshub_multipage_data]
+))]
 
 branch = Branch()
 just_downloaders = [branch.next(JustDownloader(i)) for i in range(1, 4)]
@@ -43,6 +43,7 @@ for f in rsshub_feeders:
     f.next(branch)
 for f in rsshub_multipage_feeders:
     f.next(branch)
+
 
 async def main():
     await root(123)
