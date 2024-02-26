@@ -75,6 +75,8 @@ class RSSHubMultiPageFeeder(Feeder):
         last_page = []
         for page in range(0, self.__max_pages):
             url = self.__url_gen(page, last_page)
+            if not url:
+                return
             rf = RSSHubFeeder(url, self.httpx_client_opt_generator)
             rf.setTag(self.__tag_for_feeder)
             self.getLogger().debug("got page %d: %s" % (page, url))
