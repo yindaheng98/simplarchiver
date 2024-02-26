@@ -42,7 +42,6 @@ class DownloadController(Logger):
                 self.getLogger().debug('coroutine | download process exited: %s' % item)
                 self.__queue.task_done()  # task_done配合join可以判断任务是否全部完成
                 task_queue.get()
-                task_queue.task_done()
 
         self.__queue: asyncio.Queue = asyncio.Queue(self.__buffer_size)
         # 运行时生成asyncio.Queue
