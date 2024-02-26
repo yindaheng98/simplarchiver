@@ -30,21 +30,9 @@ class DownloadController(Logger):
         await self.__queue.join()
         self.getLogger().debug('finish join coroutine')
 
-    async def coroutine(self, sem: asyncio.Semaphore):
+    async def coroutine(self, sem: asyncio.Semaphore, max_parallel):
         """独立运行的Download任务"""
-        self.__queue: asyncio.Queue = asyncio.Queue(self.__buffer_size)
-        # 运行时生成asyncio.Queue
-        # asyncio相关数据结构必须在asyncio.run之后生成，否则会出现错误：
-        # got Future <Future pending> attached to a different loop
-        # 这是由于asyncio.run会生成新的事件循环，不同事件循环中的事件不能互相调用
-        self.getLogger().debug('coroutine | start')
-        while True:
-            self.getLogger().debug('coroutine | wait for next item')
-            item = await self.__queue.get()
-            self.getLogger().debug('coroutine | item got: %s' % item)
-            if item is None:
-                self.__queue.task_done()
-                break  # 用None表示feed结束
+        async def download(item, sem: asyncio.Semaphore, task_queue: asyncio.Queue):
             async with sem:
                 self.getLogger().debug('coroutine | download process start: %s' % item)
                 try:
@@ -53,6 +41,25 @@ class DownloadController(Logger):
                     self.getLogger().exception('Catch an Exception from your Downloader:')
                 self.getLogger().debug('coroutine | download process exited: %s' % item)
                 self.__queue.task_done()  # task_done配合join可以判断任务是否全部完成
+                task_queue.get()
+                task_queue.task_done()
+
+        self.__queue: asyncio.Queue = asyncio.Queue(self.__buffer_size)
+        # 运行时生成asyncio.Queue
+        # asyncio相关数据结构必须在asyncio.run之后生成，否则会出现错误：
+        # got Future <Future pending> attached to a different loop
+        # 这是由于asyncio.run会生成新的事件循环，不同事件循环中的事件不能互相调用
+        task_queue: asyncio.Queue = asyncio.Queue(max_parallel)
+        self.getLogger().debug('coroutine | start')
+        while True:
+            self.getLogger().debug('coroutine | wait for next item')
+            item = await self.__queue.get()
+            self.getLogger().debug('coroutine | item got: %s' % item)
+            if item is None:
+                self.__queue.task_done()
+                break  # 用None表示feed结束
+            task_queue.put(None)
+            asyncio.create_task(download(item, sem, task_queue))
         self.getLogger().debug('coroutine | end')
 
 
@@ -110,8 +117,8 @@ class Pair(Logger):
                  downloaders: List[Downloader] = [],
                  start_deny: timedelta = timedelta(seconds=4),
                  interval: timedelta = timedelta(seconds=4),
-                 feeder_concurrency: int = 3,
-                 downloader_concurrency: int = 3):
+                 feeder_concurrency: int = 4,
+                 downloader_concurrency: int = 16):
         super().__init__()
         self.__tag = None
         self.__fcs: List[FeedController] = []
@@ -182,7 +189,7 @@ class Pair(Logger):
         self.__log_coroutine_once('feeder     tasks | start  creating')
         # Download任务开始之后是一直在运行的，等到Feed任务给他发停止信息才会停
         for dc in self.__dcs:
-            asyncio.create_task(dc.coroutine(dc_sem))
+            asyncio.create_task(dc.coroutine(dc_sem, self.__dc_concurrency))
         self.__log_coroutine_once('feeder     tasks | finish creating')
 
         self.__log_coroutine_once('feeder     tasks | start')
