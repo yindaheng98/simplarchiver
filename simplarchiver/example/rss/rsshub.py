@@ -1,5 +1,5 @@
 import json
-from typing import Dict, Callable
+from typing import Dict, Callable, List
 from xml.etree import ElementTree
 
 import httpx
@@ -53,7 +53,7 @@ class RSSHubMultiPageFeeder(Feeder):
     如果有enclosure还会返回enclosure值
     """
 
-    def __init__(self, url_gen: Callable[[int], str], max_pages: int = 999,
+    def __init__(self, url_gen: Callable[[int, List[Dict]], str], max_pages: int = 999,
                  httpx_client_opt_generator: Callable[[], Dict] = default_httpx_client_opt_generator):
         """
         url_gen是输入数字生成url的函数
@@ -72,13 +72,15 @@ class RSSHubMultiPageFeeder(Feeder):
         self.__tag_for_feeder = tag
 
     async def get_feeds(self):
+        last_page = []
         for page in range(0, self.__max_pages):
-            url = self.__url_gen(page)
+            url = self.__url_gen(page, last_page)
             rf = RSSHubFeeder(url, self.httpx_client_opt_generator)
             rf.setTag(self.__tag_for_feeder)
             self.getLogger().debug("got page %d: %s" % (page, url))
             try:
                 async for item in rf.get_feeds():
+                    last_page.append(item)
                     yield item
             except Exception:
                 self.getLogger().exception("Catch an Exception from page %d: %s" % (page, url))

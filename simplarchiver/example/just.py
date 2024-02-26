@@ -15,15 +15,18 @@ class JustDownloader(Downloader):
         super().__init__()
         self.id = i
         self.getLogger().info('Initialized')
+        self.running: int = 0
 
     async def download(self, item):
         self.getLogger().info('I get an item! %s' % item)
         JustDownloader.running += 1
-        self.getLogger().info('Now there are %d SleepDownloader awaiting including me' % JustDownloader.running)
+        self.running += 1
+        self.getLogger().info('🟢: Now there are %d SleepDownloader awaiting including %d me' % (JustDownloader.running, self.running))
         item = await asyncio.sleep(delay=0.1, result=item)
         self.getLogger().info('For the item %s, time to wake up' % item)
+        self.running -= 1
         JustDownloader.running -= 1
-        self.getLogger().info('Now there are %d SleepDownloader awaiting' % JustDownloader.running)
+        self.getLogger().info('🔴: Now there are %d SleepDownloader awaiting including %d me' % (JustDownloader.running, self.running))
 
 
 class JustLogCallback(Callback):

@@ -58,12 +58,12 @@ class SleepDownloader(Downloader):
         t = random.random() % self.rand_max if self.seconds is None else self.seconds
         SleepDownloader.running += 1
         self.running += 1
-        self.getLogger().info('Now there are %d SleepDownloader awaiting including %d me, I will sleep %f seconds' % (SleepDownloader.running, self.running, t))
+        self.getLogger().info('🟢: Now there are %d SleepDownloader awaiting including %d me, I will sleep %f seconds' % (SleepDownloader.running, self.running, t))
         item = await asyncio.sleep(delay=t, result=item)
         self.getLogger().info('I have slept %f seconds for the item %s, time to wake up' % (t, item))
-        SleepDownloader.running -= 1
         self.running -= 1
-        self.getLogger().info('I wake up, Now there are %d other SleepDownloader awaiting' % SleepDownloader.running)
+        SleepDownloader.running -= 1
+        self.getLogger().info('🔴: Now there are %d SleepDownloader awaiting including %d me, I will sleep %f seconds' % (SleepDownloader.running, self.running, t))
 
 
 class SleepFliter(Filter):
