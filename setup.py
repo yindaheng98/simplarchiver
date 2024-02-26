@@ -16,7 +16,7 @@ package_dir = {
 
 setup(
     name='simplarchiver',
-    version='3.2.1',
+    version='3.3',
     author='yindaheng98',
     author_email='yindaheng98@163.com',
     url='https://github.com/yindaheng98/simplarchiver',

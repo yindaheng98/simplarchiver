@@ -41,7 +41,7 @@ class DownloadController(Logger):
                     self.getLogger().exception('Catch an Exception from your Downloader:')
                 self.getLogger().debug('coroutine | download process exited: %s' % item)
                 self.__queue.task_done()  # task_done配合join可以判断任务是否全部完成
-                task_queue.get()
+                await task_queue.get()
 
         self.__queue: asyncio.Queue = asyncio.Queue(self.__buffer_size)
         # 运行时生成asyncio.Queue
@@ -57,7 +57,7 @@ class DownloadController(Logger):
             if item is None:
                 self.__queue.task_done()
                 break  # 用None表示feed结束
-            task_queue.put(None)
+            await task_queue.put(None)
             asyncio.create_task(download(item, sem, task_queue))
         self.getLogger().debug('coroutine | end')
 
